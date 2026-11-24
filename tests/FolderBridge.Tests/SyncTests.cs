@@ -198,6 +198,72 @@ public sealed class SyncTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task ManualModeWaitsForSyncNow()
+    {
+        b.UpdateOptions(b.Options with { Mode = SyncMode.Manual });
+        await WaitUntil(() => b.Snapshot().Folders.Single().State == Core.Sync.FolderState.Waiting);
+
+        File.WriteAllText(Path.Combine(dirA, "later.txt"), "later");
+        await Task.Delay(4000);
+        Assert.False(File.Exists(Path.Combine(dirB, "later.txt")));
+        Assert.Equal("Syncs when you press Sync now", b.Snapshot().Folders.Single().WaitReason);
+
+        b.Rescan();
+        await WaitUntil(() => HasText(Path.Combine(dirB, "later.txt"), "later"));
+    }
+
+    [Fact]
+    public async Task OutsideSyncHoursNothingMovesUntilAllowed()
+    {
+        var now = DateTime.Now.Hour * 60 + DateTime.Now.Minute;
+        b.UpdateOptions(b.Options with { Mode = SyncMode.Hours, FromMinute = (now + 120) % 1440, ToMinute = (now + 180) % 1440 });
+        await WaitUntil(() => b.Snapshot().Folders.Single().State == Core.Sync.FolderState.Waiting);
+
+        File.WriteAllText(Path.Combine(dirA, "night.txt"), "night");
+        await Task.Delay(4000);
+        Assert.False(File.Exists(Path.Combine(dirB, "night.txt")));
+        Assert.StartsWith("Syncs between", b.Snapshot().Folders.Single().WaitReason);
+
+        b.UpdateOptions(b.Options with { Mode = SyncMode.Instant });
+        await WaitUntil(() => HasText(Path.Combine(dirB, "night.txt"), "night"));
+    }
+
+    [Fact]
+    public async Task OptionsSurviveRestart()
+    {
+        var wanted = b.Options with
+        {
+            Mode = SyncMode.Interval,
+            IntervalMinutes = 30,
+            FromMinute = 0,
+            Cpu = CpuMode.Full,
+            Notifications = false,
+            PauseOnBattery = true,
+            DownloadLimitKBps = 500,
+        };
+        b.UpdateOptions(wanted);
+        b.Dispose();
+        b = CreateEngine("B");
+        Assert.Equal(wanted, b.Options);
+        b.Start();
+        await Task.CompletedTask;
+    }
+
+    [Fact]
+    public async Task DownloadLimitIsRespected()
+    {
+        b.UpdateOptions(b.Options with { DownloadLimitKBps = 256 });
+        var data = RandomNumberGenerator.GetBytes(1024 * 1024);
+        var started = DateTime.UtcNow;
+        File.WriteAllBytes(Path.Combine(dirA, "slow.bin"), data);
+        var dst = Path.Combine(dirB, "slow.bin");
+        await WaitUntil(() => File.Exists(dst) && new FileInfo(dst).Length == data.Length, 30);
+        // Four 256 KB blocks at 256 KB/s: the first goes at once, the other three take about a second each.
+        Assert.True(DateTime.UtcNow - started >= TimeSpan.FromSeconds(2.5));
+        Assert.Equal(data, File.ReadAllBytes(dst));
+    }
+
+    [Fact]
     public async Task IgnoredFolderCanBeOfferedAgain()
     {
         var offers = new List<FolderOffer>();

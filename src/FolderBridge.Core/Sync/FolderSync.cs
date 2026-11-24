@@ -5,7 +5,7 @@ using FolderBridge.Core.Net;
 
 namespace FolderBridge.Core.Sync;
 
-public enum FolderState { Idle, Scanning, Syncing, Paused, Error }
+public enum FolderState { Idle, Scanning, Syncing, Paused, Error, Waiting }
 
 public sealed class FolderSync : IDisposable
 {
@@ -38,13 +38,16 @@ public sealed class FolderSync : IDisposable
     bool indexDirty, saveScheduled, tmpReady;
     int fileCount, conflictCount, doneFiles;
     long byteCount, doneBytes, bytesIn, bytesOut;
-    DateTime lastSendUtc, lastFullScan;
+    DateTime lastSendUtc, lastFullScan, lastRunUtc;
+    volatile bool forceNext;
+    readonly Pacer pacer;
 
     public FolderConfig Config { get; }
     public string Id => Config.Id;
     public string Root => Config.Path;
     public FolderState State { get; private set; }
     public string? Error { get; private set; }
+    public string? WaitReason { get; private set; }
     public int NeedFiles { get; private set; }
     public int DoneFiles => doneFiles;
     public long NeedBytes { get; private set; }
@@ -59,6 +62,7 @@ public sealed class FolderSync : IDisposable
         this.engine = engine;
         this.indexPath = indexPath;
         Config = config;
+        pacer = new Pacer(() => engine.RestRatio);
         debounce = new Timer(_ => wake.Release());
         retry = new Timer(_ => wake.Release());
         saveTimer = new Timer(_ => SaveIndex());
@@ -72,11 +76,14 @@ public sealed class FolderSync : IDisposable
 
     internal void Start() => _ = Task.Run(RunAsync);
 
-    public void RequestScan()
+    // force: run even when the schedule says not now, as for Sync now.
+    public void RequestScan(bool force = false)
     {
         lock (gate)
             fullScanRequested = true;
         pullRequested = true;
+        if (force)
+            forceNext = true;
         wake.Release();
     }
 
@@ -133,7 +140,7 @@ public sealed class FolderSync : IDisposable
             conflicts = conflictCount;
             bytes = byteCount;
         }
-        return new FolderSnapshot(Id, Config.Name, Root, State, Error, Config.Paused, files, bytes, conflicts,
+        return new FolderSnapshot(Id, Config.Name, Root, State, Error, WaitReason, Config.Paused, files, bytes, conflicts,
             NeedFiles, DoneFiles, NeedBytes, Interlocked.Read(ref doneBytes), CurrentFile, CurrentPeer, FailedFiles, LastSync,
             Interlocked.Read(ref bytesIn), Interlocked.Read(ref bytesOut), DateTime.UtcNow - lastSendUtc < TimeSpan.FromSeconds(2),
             Config.Devices.Select(d => new DeviceId(d)).ToList(), activePeers);
@@ -164,6 +171,7 @@ public sealed class FolderSync : IDisposable
         var lastMaintenance = DateTime.MinValue;
         while (!ct.IsCancellationRequested)
         {
+            TimeSpan? held = null;
             try
             {
                 if (DateTime.UtcNow - lastMaintenance > TimeSpan.FromDays(1))
@@ -171,7 +179,25 @@ public sealed class FolderSync : IDisposable
                     lastMaintenance = DateTime.UtcNow;
                     Maintain();
                 }
-                await PassAsync(ct);
+                if (!Config.Paused && !forceNext)
+                {
+                    var schedule = engine.CheckSchedule(lastRunUtc);
+                    if (!schedule.Allowed)
+                    {
+                        // The watcher keeps collecting changed paths meanwhile, so the next run stays cheap.
+                        State = FolderState.Waiting;
+                        WaitReason = schedule.Reason;
+                        held = schedule.Recheck;
+                    }
+                }
+                if (held == null)
+                {
+                    forceNext = false;
+                    WaitReason = null;
+                    await PassAsync(ct);
+                    if (!Config.Paused)
+                        lastRunUtc = DateTime.UtcNow;
+                }
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -185,12 +211,11 @@ public sealed class FolderSync : IDisposable
             }
 
             // The watcher reports changes as they happen, so full rescans are only a rare safety net.
-            var wait = watcher == null || FailedFiles > 0 ? RetryInterval : FullScanInterval - (DateTime.UtcNow - lastFullScan);
-            if (wait < TimeSpan.FromSeconds(1))
-                wait = TimeSpan.FromSeconds(1);
+            var wait = held ?? (watcher == null || FailedFiles > 0 ? RetryInterval : FullScanInterval - (DateTime.UtcNow - lastFullScan));
+            wait = TimeSpan.FromTicks(Math.Clamp(wait.Ticks, TimeSpan.FromSeconds(1).Ticks, TimeSpan.FromHours(1).Ticks));
             try
             {
-                if (!await wake.WaitAsync(wait, ct))
+                if (!await wake.WaitAsync(wait, ct) && held == null)
                 {
                     if (watcher == null || DateTime.UtcNow - lastFullScan >= FullScanInterval)
                         lock (gate)
@@ -333,6 +358,7 @@ public sealed class FolderSync : IDisposable
 
     void Examine(string rel, FileSystemInfo info, string me, List<FileEntry> changed)
     {
+        pacer.Pace();
         FileEntry? old;
         lock (gate)
             index.TryGetValue(rel, out old);
@@ -559,6 +585,7 @@ public sealed class FolderSync : IDisposable
             try
             {
                 var (result, conflict) = await ApplyAsync(peer, entry, ct);
+                await pacer.PaceAsync(ct);
                 if (result != null)
                     adopted.Add(result);
                 conflicts |= conflict;
@@ -699,6 +726,7 @@ public sealed class FolderSync : IDisposable
                     while (queue.Count < Pipeline && next < r.Size)
                     {
                         int length = (int)Math.Min(ChunkSize, r.Size - next);
+                        await engine.DownloadLimit.WaitAsync(length, ct);
                         queue.Enqueue((conn.RequestAsync(Id, r.Path, r.Hash!.Value, next, length, ct), length));
                         next += length;
                     }
@@ -992,7 +1020,7 @@ public sealed class FolderSync : IDisposable
         return fi.Exists && fi.Length == l.Size && fi.LastWriteTimeUtc.Ticks == l.ModifiedTicks;
     }
 
-    static ContentHash HashFile(string path)
+    ContentHash HashFile(string path)
     {
         using var handle = File.OpenHandle(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, FileOptions.SequentialScan);
         using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
@@ -1004,6 +1032,7 @@ public sealed class FolderSync : IDisposable
             while ((n = RandomAccess.Read(handle, buffer, offset)) > 0)
             {
                 hash.AppendData(buffer, 0, n);
+                pacer.Pace();
                 offset += n;
             }
         }

@@ -39,7 +39,7 @@ static class Json
     public static readonly JsonSerializerOptions Pretty = new(Options) { WriteIndented = true };
 }
 
-[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault)]
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault, UseStringEnumConverter = true)]
 [JsonSerializable(typeof(AppConfig))]
 [JsonSerializable(typeof(List<FileEntry>))]
 [JsonSerializable(typeof(ActivityEntry))]

@@ -6,6 +6,8 @@ Folder Bridge keeps a folder identical on two Windows computers over your local 
 
 Open Folder Bridge on both computers. On one of them click **Pair a device**, pick the other computer (or type its address) and press **Pair** on both once they show the same six-digit code. Then click **Add a folder**, choose the folder and tick the other computer. The other computer asks where to keep it, and from then on changes on either side are copied to the other within a few seconds.
 
+Right-click the tray icon to choose when it syncs (as soon as something changes, every few minutes, only when you press Sync now, or only during set hours) and how hard it may work the computer. Settings also has speed limits and can hold syncing while on battery or a metered connection.
+
 Closing the window keeps Folder Bridge running in the tray. On first start Windows Firewall asks whether to let it through; allow it on private networks. It listens on TCP port 22000 and announces itself on UDP port 22027.
 
 ## What happens to your files

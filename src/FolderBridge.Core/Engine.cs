@@ -93,13 +93,95 @@ public sealed class Engine : IDisposable
 
     internal void CountWork() => Interlocked.Increment(ref workDone);
 
+    // ---------- Sync options ----------
+
+    readonly RateLimiter uploadLimit = new(), downloadLimit = new();
+
+    internal RateLimiter DownloadLimit => downloadLimit;
+
+    public SyncOptions Options
+    {
+        get { lock (gate) return config.Sync; }
+    }
+
+    public event Action? OptionsChanged;
+
+    public void UpdateOptions(SyncOptions options)
+    {
+        options.Validate();
+        List<FolderSync> all;
+        lock (gate)
+        {
+            config.Sync = options;
+            SaveConfig();
+            all = folders.Values.ToList();
+        }
+        ApplyLimits();
+        foreach (var f in all)
+            f.Wake();
+        OptionsChanged?.Invoke();
+    }
+
+    void ApplyLimits()
+    {
+        var o = Options;
+        uploadLimit.BytesPerSecond = o.UploadLimitKBps * 1024L;
+        downloadLimit.BytesPerSecond = o.DownloadLimitKBps * 1024L;
+    }
+
+    // How long the CPU-heavy loops rest for every unit of work.
+    internal double RestRatio => Options.Cpu switch
+    {
+        CpuMode.Balanced => 1,
+        CpuMode.Background => 3,
+        _ => 0,
+    };
+
+    // Whether a folder may look for changes and sync right now, and if not, when to ask again.
+    internal (bool Allowed, TimeSpan Recheck, string? Reason) CheckSchedule(DateTime lastRunUtc)
+    {
+        var o = Options;
+        if (o.PauseOnBattery && SystemState.OnBattery())
+            return (false, TimeSpan.FromSeconds(30), "Waiting: this computer is running on battery");
+        if (o.PauseOnMetered && SystemState.OnMeteredNetwork())
+            return (false, TimeSpan.FromSeconds(30), "Waiting: the network connection is metered");
+        switch (o.Mode)
+        {
+            case SyncMode.Manual:
+                return (false, TimeSpan.FromHours(1), "Syncs when you press Sync now");
+            case SyncMode.Interval:
+            {
+                var due = lastRunUtc + TimeSpan.FromMinutes(o.IntervalMinutes);
+                var now = DateTime.UtcNow;
+                return now >= due ? (true, default, null) : (false, due - now, $"Next sync at {due.ToLocalTime():HH:mm}");
+            }
+            case SyncMode.Hours:
+            {
+                var now = DateTime.Now;
+                int minute = now.Hour * 60 + now.Minute;
+                bool inside = o.FromMinute < o.ToMinute
+                    ? minute >= o.FromMinute && minute < o.ToMinute
+                    : minute >= o.FromMinute || minute < o.ToMinute;
+                if (inside)
+                    return (true, default, null);
+                var start = now.Date.AddMinutes(o.FromMinute);
+                if (start <= now)
+                    start = start.AddDays(1);
+                return (false, start - now, $"Syncs between {SyncOptions.Time(o.FromMinute)} and {SyncOptions.Time(o.ToMinute)}");
+            }
+            default:
+                return (true, default, null);
+        }
+    }
+
     public int ListenPort => (listener?.LocalEndpoint as IPEndPoint)?.Port ?? config.ListenPort;
 
     public void Start()
     {
+        ApplyLimits();
         lock (gate)
             foreach (var fc in config.Folders)
-                StartFolder(fc);
+                StartFolder(fc, false);
         StartListener();
         if (options.Discovery)
         {
@@ -128,10 +210,13 @@ public sealed class Engine : IDisposable
 
     // ---------- Folders ----------
 
-    void StartFolder(FolderConfig fc)
+    // A newly added folder syncs once right away whatever the schedule says.
+    void StartFolder(FolderConfig fc, bool syncNow)
     {
         var folder = new FolderSync(this, fc, Path.Combine(DataDir, "index", fc.Id + ".json"));
         folders[fc.Id] = folder;
+        if (syncNow)
+            folder.RequestScan(force: true);
         folder.Start();
     }
 
@@ -174,7 +259,7 @@ public sealed class Engine : IDisposable
             config.Folders.Add(fc);
             offers.RemoveAll(o => o.FolderId == fc.Id);
             SaveConfig();
-            StartFolder(fc);
+            StartFolder(fc, true);
         }
         Log($"Added folder {fc.Name} at {fc.Path}");
         ConfigChanged();
@@ -250,7 +335,7 @@ public sealed class Engine : IDisposable
         lock (gate)
             targets = folders.Values.Where(f => folderId == null || f.Id == folderId).ToList();
         foreach (var f in targets)
-            f.RequestScan();
+            f.RequestScan(force: true);
         if (folderId == null)
         {
             lock (gate)
@@ -840,6 +925,7 @@ public sealed class Engine : IDisposable
         {
             if (folder != null && Shares(folder.Config, conn.PeerId) && req.Size is > 0 and <= FolderSync.ChunkSize)
             {
+                await uploadLimit.WaitAsync(req.Size, cts.Token);
                 try
                 {
                     (found, var fileSize) = folder.ServeBlock(req.Path, req.Hash, req.Offset, buffer, req.Size);

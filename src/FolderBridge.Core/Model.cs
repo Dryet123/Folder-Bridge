@@ -140,6 +140,7 @@ public sealed record FolderSnapshot(
     string Path,
     FolderState State,
     string? Error,
+    string? WaitReason,
     bool Paused,
     int LocalFiles,
     long LocalBytes,
