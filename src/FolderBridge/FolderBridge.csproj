@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>FolderBridge</AssemblyName>
+    <RootNamespace>FolderBridge</RootNamespace>
+    <Product>Folder Bridge</Product>
+    <Version>0.1.0</Version>
+    <ApplicationIcon Condition="Exists('FolderBridge.ico')">FolderBridge.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FolderBridge.Core\FolderBridge.Core.csproj" />
+  </ItemGroup>
+
+</Project>

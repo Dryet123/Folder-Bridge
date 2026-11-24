@@ -1,0 +1,31 @@
+<local:XpWindow x:Class="FolderBridge.Dialogs.OfferDialog"
+                xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                xmlns:local="clr-namespace:FolderBridge"
+                Title="Shared folder" SizeToContent="WidthAndHeight" ResizeMode="NoResize" ShowInTaskbar="False"
+                WindowStartupLocation="CenterOwner">
+    <Grid Margin="14,14,14,12" Width="420">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <DockPanel>
+            <Image Source="{DynamicResource Icon.Folder}" Width="32" Height="32" VerticalAlignment="Top" Margin="0,0,14,0" />
+            <StackPanel>
+                <TextBlock x:Name="Intro" TextWrapping="Wrap" />
+                <TextBlock Text="Keep it in this folder:" Margin="0,12,0,4" />
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Content="Browse..." Margin="6,0,0,0" Click="Browse_Click" />
+                    <TextBox x:Name="PathBox" VerticalContentAlignment="Center" />
+                </DockPanel>
+                <TextBlock Text="Files already in that folder are kept and merged with the shared ones." TextWrapping="Wrap" Foreground="#555555" Margin="0,6,0,0" />
+                <TextBlock x:Name="ErrorText" TextWrapping="Wrap" Foreground="#C00000" Margin="0,8,0,0" Visibility="Collapsed" />
+            </StackPanel>
+        </DockPanel>
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="Accept" Click="Accept_Click" />
+            <Button Content="Ignore" Margin="6,0,0,0" Click="Ignore_Click" ToolTip="Don't ask about this folder again" />
+            <Button Content="Later" IsCancel="True" Margin="6,0,0,0" />
+        </StackPanel>
+    </Grid>
+</local:XpWindow>

@@ -1,0 +1,44 @@
+<local:XpWindow x:Class="FolderBridge.Dialogs.AddFolderDialog"
+                xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                xmlns:local="clr-namespace:FolderBridge"
+                Title="Add a folder" SizeToContent="WidthAndHeight" ResizeMode="NoResize" ShowInTaskbar="False"
+                WindowStartupLocation="CenterOwner">
+    <Grid Margin="14,14,14,12" Width="420">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <DockPanel>
+            <Image Source="{DynamicResource Icon.Folder}" Width="32" Height="32" VerticalAlignment="Top" Margin="0,0,14,0" />
+            <StackPanel>
+                <TextBlock Text="Choose a folder to keep the same on your other computers." TextWrapping="Wrap" />
+                <Grid Margin="0,12,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="44" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="Folder:" VerticalAlignment="Center" />
+                    <DockPanel Grid.Column="1">
+                        <Button DockPanel.Dock="Right" Content="Browse..." Margin="6,0,0,0" Click="Browse_Click" />
+                        <TextBox x:Name="PathBox" TextChanged="PathBox_TextChanged" />
+                    </DockPanel>
+                    <TextBlock Grid.Row="1" Text="Name:" VerticalAlignment="Center" Margin="0,8,0,0" />
+                    <TextBox x:Name="NameBox" Grid.Row="1" Grid.Column="1" Margin="0,8,0,0" />
+                </Grid>
+                <TextBlock Text="Share with:" Margin="0,12,0,4" />
+                <StackPanel x:Name="DeviceBoxes" />
+                <TextBlock x:Name="NoDevices" Text="No paired computers yet. You can share the folder after pairing." TextWrapping="Wrap" Foreground="#555555" />
+                <TextBlock x:Name="ErrorText" TextWrapping="Wrap" Foreground="#C00000" Margin="0,8,0,0" Visibility="Collapsed" />
+            </StackPanel>
+        </DockPanel>
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Content="Add" IsDefault="True" Click="Add_Click" />
+            <Button Content="Cancel" IsCancel="True" Margin="6,0,0,0" />
+        </StackPanel>
+    </Grid>
+</local:XpWindow>
