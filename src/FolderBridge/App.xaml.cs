@@ -22,6 +22,8 @@ public partial class App : Application
     Tray? tray;
     MainWindow? main;
     bool memoryDirty = true;
+    long activityCursor;
+    SettingsDialog? settings;
     long lastWork;
 
     public static ImageSource WindowIcon { get; private set; } = null!;
@@ -122,6 +124,10 @@ public partial class App : Application
         OnSignal(exitSignal, Quit);
         Snapshots.Start();
 
+        engine.OptionsChanged += () => Dispatcher.BeginInvoke(ApplyLoad);
+        engine.Activity.Since(ref activityCursor);
+        ApplyLoad();
+
         var housekeeping = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
         housekeeping.Tick += (_, _) => Housekeep();
         housekeeping.Start();
@@ -145,7 +151,9 @@ public partial class App : Application
             {
                 main = null;
                 memoryDirty = true;
+                ApplyLoad();
             };
+            ApplyLoad();
         }
         main.Show();
         if (main.WindowState == WindowState.Minimized)
@@ -167,9 +175,59 @@ public partial class App : Application
         dialog.Show();
     }
 
+    public void ShowSettings(int tab)
+    {
+        if (settings != null)
+        {
+            settings.Activate();
+            return;
+        }
+        settings = new SettingsDialog(engine, tab) { Owner = VisibleMain };
+        if (settings.Owner == null)
+            settings.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+        settings.Closed += (_, _) => settings = null;
+        settings.ShowDialog();
+    }
+
+    // The process priority follows the chosen load. Windows' background mode would also slow the open
+    // window down, so it is only used while the window is closed.
+    void ApplyLoad()
+    {
+        var mode = engine.Options.Cpu;
+        var process = GetCurrentProcess();
+        SetPriorityClass(process, ProcessModeBackgroundEnd);
+        SetPriorityClass(process, mode switch
+        {
+            CpuMode.Full => NormalPriority,
+            CpuMode.Background when main == null => IdlePriority,
+            _ => BelowNormalPriority,
+        });
+        if (mode == CpuMode.Background && main == null)
+            SetPriorityClass(process, ProcessModeBackgroundBegin);
+    }
+
+    // Conflicts and failures get a notification when nobody is looking at the window.
+    void NotifyProblems()
+    {
+        var entries = engine.Activity.Since(ref activityCursor);
+        if (VisibleMain != null || tray == null)
+            return;
+        int conflicts = entries.Count(e => e.Kind == ActivityKind.Conflict);
+        int errors = entries.Count(e => e.Kind == ActivityKind.Error);
+        if (conflicts > 0)
+            tray.Notify("Changed on both computers", conflicts == 1
+                ? "A file was edited on both computers. Both versions were kept."
+                : $"{conflicts} files were edited on both computers. Both versions were kept.");
+        else if (errors > 0)
+            tray.Notify("Some files didn't sync", errors == 1
+                ? "A file couldn't be synced. Open Folder Bridge to see which one."
+                : $"{errors} files couldn't be synced. Open Folder Bridge to see which ones.");
+    }
+
     // With no window open, memory left over from a sync is handed back once things are quiet again.
     void Housekeep()
     {
+        NotifyProblems();
         if (main != null || Windows.Count > 0)
             return;
         var work = engine.WorkDone;
@@ -201,4 +259,10 @@ public partial class App : Application
 
     [DllImport("kernel32.dll")]
     static extern bool SetProcessWorkingSetSize(IntPtr process, nint min, nint max);
+
+    const uint NormalPriority = 0x20, IdlePriority = 0x40, BelowNormalPriority = 0x4000;
+    const uint ProcessModeBackgroundBegin = 0x00100000, ProcessModeBackgroundEnd = 0x00200000;
+
+    [DllImport("kernel32.dll")]
+    static extern bool SetPriorityClass(IntPtr process, uint priority);
 }

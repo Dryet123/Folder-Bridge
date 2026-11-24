@@ -219,6 +219,7 @@ public sealed class FolderVm : Observable
                 : "Applying folder changes"),
             { State: FolderState.Scanning } => (Icons.Sync, "Looking for changes..."),
             { Sending: true } => (Icons.Sync, $"Sending files to {Names(s.ActivePeers)}"),
+            { State: FolderState.Waiting } => (Icons.Clock, s.WaitReason ?? "Waiting for the next sync"),
             { SharedWith.Count: 0 } => (Icons.Offline, "Not shared yet. Tick a computer under Shared with."),
             { ActivePeers.Count: 0 } when notAccepted.Count > 0 => (Icons.Offline, $"Waiting for {Names(notAccepted)} to accept the folder"),
             { ActivePeers.Count: 0 } => (Icons.Offline, $"Waiting for {Names(waiting)} to come online"),
@@ -228,7 +229,7 @@ public sealed class FolderVm : Observable
         };
         if (syncing)
             pct = s.NeedBytes > 0 ? 100.0 * s.DoneBytes / s.NeedBytes : 0;
-        else if (s.ActivePeers.Count > 0 && !s.Paused && s.State != FolderState.Error)
+        else if (s.ActivePeers.Count > 0 && !s.Paused && s.State is not (FolderState.Error or FolderState.Waiting))
             pct = 100;
         StatusIcon = icon;
         StatusLine = line;
@@ -347,7 +348,7 @@ public sealed class MainViewModel : Observable
     {
         Last = s;
         DeviceName = s.DeviceName;
-        StatusText = s.ListenError ?? $"Ready on port {s.Port}";
+        StatusText = s.ListenError ?? $"{SyncText.Summary(engine.Options)}. Port {s.Port}";
         DownText = "Down: " + Format.Speed(down.Update(s.BytesIn));
         UpText = "Up: " + Format.Speed(up.Update(s.BytesOut));
 

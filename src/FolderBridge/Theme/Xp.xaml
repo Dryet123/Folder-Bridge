@@ -792,18 +792,49 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="MenuItem">
-                    <Border x:Name="Bd" Height="20" Background="Transparent" MinWidth="160">
+                    <Border x:Name="Bd" Height="20" Background="Transparent" MinWidth="170">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="24" />
                                 <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="20" />
                             </Grid.ColumnDefinitions>
                             <ContentPresenter ContentSource="Icon" Width="16" Height="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                            <ContentPresenter Grid.Column="1" ContentSource="Header" VerticalAlignment="Center" RecognizesAccessKey="True" />
+                            <Path x:Name="Check" Data="M0.5,3.5 L3,6 L7.5,1" Stroke="{TemplateBinding Foreground}" StrokeThickness="1.6" Width="8" Height="7"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed" />
+                            <Ellipse x:Name="Dot" Width="6" Height="6" Fill="{TemplateBinding Foreground}" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed" />
+                            <ContentPresenter Grid.Column="1" ContentSource="Header" VerticalAlignment="Center" RecognizesAccessKey="True" Margin="0,0,10,0" />
+                            <Path x:Name="Arrow" Grid.Column="2" Data="M0,0 L4,4 L0,8 Z" Fill="{TemplateBinding Foreground}" HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed" />
+                            <Popup x:Name="PART_Popup" Placement="Right" HorizontalOffset="-3" VerticalOffset="-3" Focusable="False" PopupAnimation="None"
+                                   IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}">
+                                <Border Background="White" BorderBrush="#ACA899" BorderThickness="1" Padding="2" TextElement.Foreground="Black"
+                                        TextElement.FontFamily="{StaticResource UiFont}" TextElement.FontSize="11" TextOptions.TextFormattingMode="Display">
+                                    <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle" />
+                                </Border>
+                            </Popup>
                         </Grid>
                     </Border>
                     <ControlTemplate.Triggers>
+                        <Trigger Property="Role" Value="SubmenuHeader">
+                            <Setter TargetName="Arrow" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="Role" Value="TopLevelHeader">
+                            <Setter TargetName="Arrow" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsChecked" Value="True" />
+                                <Condition Property="Tag" Value="Radio" />
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="Dot" Property="Visibility" Value="Visible" />
+                        </MultiTrigger>
+                        <MultiTrigger>
+                            <MultiTrigger.Conditions>
+                                <Condition Property="IsChecked" Value="True" />
+                                <Condition Property="Tag" Value="{x:Null}" />
+                            </MultiTrigger.Conditions>
+                            <Setter TargetName="Check" Property="Visibility" Value="Visible" />
+                        </MultiTrigger>
                         <Trigger Property="IsHighlighted" Value="True">
                             <Setter TargetName="Bd" Property="Background" Value="{StaticResource Selection}" />
                             <Setter Property="Foreground" Value="White" />
@@ -822,6 +853,106 @@
             <Setter.Value>
                 <ControlTemplate TargetType="Separator">
                     <Border Height="1" Background="#ACA899" Margin="1,3" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Radio buttons and tabs -->
+
+    <Style TargetType="RadioButton">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <StackPanel Orientation="Horizontal" Background="Transparent">
+                        <Grid Width="13" Height="13" VerticalAlignment="Center">
+                            <Ellipse x:Name="Box" Stroke="#1C5180" StrokeThickness="1">
+                                <Ellipse.Fill>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#DCDBD5" Offset="0" />
+                                        <GradientStop Color="#FFFFFF" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Ellipse.Fill>
+                            </Ellipse>
+                            <Ellipse x:Name="Hot" Margin="1" Stroke="#F8B636" StrokeThickness="2" Opacity="0.8" Visibility="Collapsed" />
+                            <Ellipse x:Name="Dot" Width="5" Height="5" Visibility="Collapsed">
+                                <Ellipse.Fill>
+                                    <RadialGradientBrush GradientOrigin="0.35,0.3">
+                                        <GradientStop Color="#A8F0A2" Offset="0" />
+                                        <GradientStop Color="#21A121" Offset="1" />
+                                    </RadialGradientBrush>
+                                </Ellipse.Fill>
+                            </Ellipse>
+                        </Grid>
+                        <ContentPresenter Margin="5,0,0,0" VerticalAlignment="Center" RecognizesAccessKey="True" />
+                    </StackPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Dot" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Hot" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Box" Property="Stroke" Value="#CAC8BB" />
+                            <Setter Property="Foreground" Value="#ACA899" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <SolidColorBrush x:Key="TabBody" Color="#FCFCFE" />
+
+    <Style TargetType="TabControl">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TabControl">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <TabPanel IsItemsHost="True" Margin="2,0,2,-1" Panel.ZIndex="1" />
+                        <Border Grid.Row="1" BorderBrush="#919B9C" BorderThickness="1" Background="{StaticResource TabBody}" Padding="10">
+                            <ContentPresenter ContentSource="SelectedContent" />
+                        </Border>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="TabItem">
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TabItem">
+                    <Grid x:Name="Root" Margin="0,2,-1,0">
+                        <Border x:Name="Bd" BorderBrush="#919B9C" BorderThickness="1,1,1,0" CornerRadius="3,3,0,0" Padding="9,2,9,3">
+                            <Border.Background>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                    <GradientStop Color="#FFFFFF" Offset="0" />
+                                    <GradientStop Color="#ECEBE6" Offset="1" />
+                                </LinearGradientBrush>
+                            </Border.Background>
+                            <ContentPresenter ContentSource="Header" HorizontalAlignment="Center" />
+                        </Border>
+                        <Border x:Name="Top" Height="3" VerticalAlignment="Top" CornerRadius="3,3,0,0" Background="#FFC83C" Visibility="Collapsed" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Top" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="Root" Property="Margin" Value="-2,0,-3,0" />
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource TabBody}" />
+                            <Setter TargetName="Bd" Property="Padding" Value="11,3,11,5" />
+                            <Setter TargetName="Top" Property="Background" Value="#E68B2C" />
+                            <Setter TargetName="Top" Property="Visibility" Value="Visible" />
+                            <Setter Property="Panel.ZIndex" Value="2" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>

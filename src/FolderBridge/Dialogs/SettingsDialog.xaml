@@ -4,50 +4,108 @@
                 xmlns:local="clr-namespace:FolderBridge"
                 Title="Settings" SizeToContent="WidthAndHeight" ResizeMode="NoResize" ShowInTaskbar="False"
                 WindowStartupLocation="CenterOwner">
-    <Grid Margin="14,14,14,12" Width="420">
+    <Grid Margin="10" Width="450">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        <DockPanel>
-            <Image Source="{DynamicResource Icon.Gear}" Width="32" Height="32" VerticalAlignment="Top" Margin="0,0,14,0" />
-            <StackPanel>
-                <GroupBox Header="This computer" Background="{StaticResource Face}">
-                    <StackPanel>
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="44" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-                            <TextBlock Text="Name:" VerticalAlignment="Center" />
-                            <TextBox x:Name="NameBox" Grid.Column="1" />
-                            <TextBlock Grid.Row="1" Text="Port:" VerticalAlignment="Center" Margin="0,8,0,0" />
-                            <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Margin="0,8,0,0">
-                                <TextBox x:Name="PortBox" Width="60" />
-                                <TextBlock Text="Other computers connect to this port." Foreground="#555555" Margin="8,0,0,0" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Grid>
-                        <CheckBox x:Name="AutostartBox" Content="Start Folder Bridge when Windows starts" Margin="0,12,0,0" />
-                        <DockPanel x:Name="IgnoredRow" Margin="0,10,0,0" Visibility="Collapsed">
-                            <Button DockPanel.Dock="Right" Content="Ask again" Click="AskAgain_Click" />
-                            <TextBlock x:Name="IgnoredText" Foreground="#555555" VerticalAlignment="Center" TextWrapping="Wrap" />
+
+        <TabControl x:Name="Tabs">
+            <TabItem Header="General">
+                <StackPanel>
+                    <GroupBox Header="This computer" Background="{StaticResource TabBody}">
+                        <StackPanel>
+                            <DockPanel>
+                                <TextBlock Text="Name:" Width="44" VerticalAlignment="Center" />
+                                <TextBox x:Name="NameBox" />
+                            </DockPanel>
+                            <CheckBox x:Name="AutostartBox" Content="Start Folder Bridge when Windows starts" Margin="0,12,0,0" />
+                            <CheckBox x:Name="NotifyBox" Content="Show notifications" Margin="0,8,0,0" />
+                            <TextBlock Text="Pairing requests, shared folders, conflicts and errors, shown when the window is closed."
+                                       Foreground="#555555" TextWrapping="Wrap" Margin="18,2,0,0" />
+                            <DockPanel x:Name="IgnoredRow" Margin="0,10,0,0" Visibility="Collapsed">
+                                <Button DockPanel.Dock="Right" Content="Ask again" Click="AskAgain_Click" />
+                                <TextBlock x:Name="IgnoredText" Foreground="#555555" VerticalAlignment="Center" TextWrapping="Wrap" />
+                            </DockPanel>
+                        </StackPanel>
+                    </GroupBox>
+                    <GroupBox Header="Device ID" Background="{StaticResource TabBody}" Margin="0,10,0,0">
+                        <DockPanel>
+                            <Button DockPanel.Dock="Right" Content="Copy" Margin="6,0,0,0" Click="Copy_Click" />
+                            <TextBox x:Name="IdBox" IsReadOnly="True" VerticalContentAlignment="Center" />
                         </DockPanel>
-                    </StackPanel>
-                </GroupBox>
-                <GroupBox Header="Device ID" Background="{StaticResource Face}" Margin="0,10,0,0">
-                    <DockPanel>
-                        <Button DockPanel.Dock="Right" Content="Copy" Margin="6,0,0,0" Click="Copy_Click" />
-                        <TextBox x:Name="IdBox" IsReadOnly="True" VerticalContentAlignment="Center" />
-                    </DockPanel>
-                </GroupBox>
-                <TextBlock x:Name="ErrorText" TextWrapping="Wrap" Foreground="#C00000" Margin="0,8,0,0" Visibility="Collapsed" />
-            </StackPanel>
-        </DockPanel>
-        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+                    </GroupBox>
+                </StackPanel>
+            </TabItem>
+
+            <TabItem Header="Sync">
+                <StackPanel>
+                    <GroupBox Header="When to look for changes and sync" Background="{StaticResource TabBody}">
+                        <StackPanel>
+                            <RadioButton x:Name="ModeInstant" GroupName="Mode" Content="As soon as something changes" />
+                            <StackPanel Orientation="Horizontal" Margin="0,7,0,0">
+                                <RadioButton x:Name="ModeInterval" GroupName="Mode" Content="Every" VerticalAlignment="Center" />
+                                <TextBox x:Name="IntervalBox" Width="40" Margin="6,0" GotKeyboardFocus="Interval_Focus" />
+                                <TextBlock Text="minutes" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <RadioButton x:Name="ModeManual" GroupName="Mode" Content="Only when I press Sync now" Margin="0,7,0,0" />
+                            <StackPanel Orientation="Horizontal" Margin="0,7,0,0">
+                                <RadioButton x:Name="ModeHours" GroupName="Mode" Content="Only between" VerticalAlignment="Center" />
+                                <TextBox x:Name="FromBox" Width="46" Margin="6,0" GotKeyboardFocus="Hours_Focus" />
+                                <TextBlock Text="and" VerticalAlignment="Center" />
+                                <TextBox x:Name="ToBox" Width="46" Margin="6,0,0,0" GotKeyboardFocus="Hours_Focus" />
+                            </StackPanel>
+                            <TextBlock Text="Sync now always works, whatever is chosen here. The other computer can still fetch files from this one."
+                                       Foreground="#555555" TextWrapping="Wrap" Margin="0,9,0,0" />
+                        </StackPanel>
+                    </GroupBox>
+                    <GroupBox Header="Load on this computer" Background="{StaticResource TabBody}" Margin="0,10,0,0">
+                        <StackPanel>
+                            <RadioButton x:Name="CpuFull" GroupName="Cpu" Content="Full speed" />
+                            <TextBlock Text="Syncs as fast as the computer allows." Foreground="#555555" Margin="18,1,0,6" />
+                            <RadioButton x:Name="CpuBalanced" GroupName="Cpu" Content="Balanced" />
+                            <TextBlock Text="Lower priority and short breaks, so other programs stay smooth." Foreground="#555555" Margin="18,1,0,6" />
+                            <RadioButton x:Name="CpuBackground" GroupName="Cpu" Content="Background" />
+                            <TextBlock Text="Lowest priority for processor and disk. Slowest, hardly noticeable." Foreground="#555555" Margin="18,1,0,0" />
+                            <CheckBox x:Name="BatteryBox" Content="Don't sync while running on battery" Margin="0,12,0,0" />
+                            <CheckBox x:Name="MeteredBox" Content="Don't sync on metered connections" Margin="0,7,0,0" />
+                        </StackPanel>
+                    </GroupBox>
+                </StackPanel>
+            </TabItem>
+
+            <TabItem Header="Network">
+                <StackPanel>
+                    <GroupBox Header="Speed limits" Background="{StaticResource TabBody}">
+                        <StackPanel>
+                            <StackPanel Orientation="Horizontal">
+                                <CheckBox x:Name="UploadLimitBox" Content="Limit sending to" Width="130" VerticalAlignment="Center" />
+                                <TextBox x:Name="UploadBox" Width="60" GotKeyboardFocus="Limit_Focus" />
+                                <TextBlock Text="KB/s" Margin="6,0,0,0" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                <CheckBox x:Name="DownloadLimitBox" Content="Limit receiving to" Width="130" VerticalAlignment="Center" />
+                                <TextBox x:Name="DownloadBox" Width="60" GotKeyboardFocus="Limit_Focus" />
+                                <TextBlock Text="KB/s" Margin="6,0,0,0" VerticalAlignment="Center" />
+                            </StackPanel>
+                            <TextBlock Text="Limits apply to all folders and computers together. 1000 KB/s is about 8 Mbit/s."
+                                       Foreground="#555555" TextWrapping="Wrap" Margin="0,9,0,0" />
+                        </StackPanel>
+                    </GroupBox>
+                    <GroupBox Header="Connection" Background="{StaticResource TabBody}" Margin="0,10,0,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Port:" Width="44" VerticalAlignment="Center" />
+                            <TextBox x:Name="PortBox" Width="60" />
+                            <TextBlock Text="Other computers connect to this port." Foreground="#555555" Margin="8,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </GroupBox>
+                </StackPanel>
+            </TabItem>
+        </TabControl>
+
+        <TextBlock x:Name="ErrorText" Grid.Row="1" TextWrapping="Wrap" Foreground="#C00000" Margin="2,8,0,0" Visibility="Collapsed" />
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
             <Button Content="OK" IsDefault="True" Click="Ok_Click" />
             <Button Content="Cancel" IsCancel="True" Margin="6,0,0,0" />
         </StackPanel>

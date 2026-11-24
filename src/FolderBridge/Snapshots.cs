@@ -35,6 +35,44 @@ static class Snapshots
         window.Top = 0;
     }
 
+    // Menus normally open at the mouse pointer and take focus; here they are shown in hidden windows instead.
+    public static void ShowMenu(System.Windows.Controls.ContextMenu menu, string name)
+    {
+        // A context menu can't live inside a window, so its items move to a plain vertical menu.
+        var host = new System.Windows.Controls.Menu
+        {
+            ItemsPanel = new System.Windows.Controls.ItemsPanelTemplate(new FrameworkElementFactory(typeof(System.Windows.Controls.StackPanel))),
+            Background = Brushes.White,
+        };
+        foreach (var item in menu.Items.Cast<object>().ToList())
+        {
+            menu.Items.Remove(item);
+            host.Items.Add(item);
+        }
+        var window = new Window
+        {
+            Title = name,
+            WindowStyle = WindowStyle.None,
+            ResizeMode = ResizeMode.NoResize,
+            ShowInTaskbar = false,
+            ShowActivated = false,
+            SizeToContent = SizeToContent.WidthAndHeight,
+            FontFamily = (FontFamily)Application.Current.Resources["UiFont"],
+            FontSize = 11,
+            Content = new System.Windows.Controls.Border
+            {
+                Background = Brushes.White,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0xAC, 0xA8, 0x99)),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(2),
+                Child = host,
+            },
+        };
+        TextOptions.SetTextFormattingMode(window, TextFormattingMode.Display);
+        MoveOffScreen(window);
+        window.Show();
+    }
+
     static void CaptureAll()
     {
         foreach (Window w in Application.Current.Windows)
@@ -45,7 +83,7 @@ static class Snapshots
             {
                 var bitmap = new RenderTargetBitmap((int)w.ActualWidth, (int)w.ActualHeight, 96, 96, PixelFormats.Pbgra32);
                 bitmap.Render(w);
-                File.WriteAllBytes(Path.Combine(Dir!, w.GetType().Name + ".png"), Icons.Png(bitmap));
+                File.WriteAllBytes(Path.Combine(Dir!, (w is XpWindow ? w.GetType().Name : w.Title) + ".png"), Icons.Png(bitmap));
             }
             catch (IOException)
             {

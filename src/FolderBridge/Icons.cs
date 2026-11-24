@@ -42,6 +42,14 @@ static class Icons
     public static readonly DrawingImage Offline = Image(Orb(OrbGray, "#5F6875", Embossed("M10.5,16.5 H21.5", "#734A525E")));
     public static readonly DrawingImage Paused = Image(Orb(OrbGray, "#5F6875", [Shape("M11.5,10.5 H14.5 V22.5 H11.5 Z M17.5,10.5 H20.5 V22.5 H17.5 Z", Brushes.White)]));
     public static readonly DrawingImage Sync = Image(SyncParts());
+    public static readonly DrawingImage Clock = Image(
+        Shadow(29.6, 11),
+        Ellipse(16, 16.5, 13, 13, Radial(0.4, 0.35, 0.75, ("#FFFFFF", 0), ("#E4ECF8", 0.7), ("#A9BCDD", 1)), "#3A5584"),
+        Ellipse(16, 10.3, 9.5, 6.2, Gloss),
+        Shape("M16,5.6 V8 M16,25 V27.4 M5.1,16.5 H7.5 M24.5,16.5 H26.9", null, "#3A5584", 1.6),
+        Shape("M16,16.5 V9.5", null, "#1F2F4F", 2, true),
+        Shape("M16,16.5 L21.5,19.8", null, "#1F2F4F", 1.6, true),
+        Ellipse(16, 16.5, 1.7, 1.7, Solid("#C0392B")));
     public static readonly DrawingImage Warn = Image(
         Shadow(29.2, 13),
         Shape("M16,3 Q17.3,3 18,4.3 L29.8,25.8 Q30.5,27.6 28.6,27.6 H3.4 Q1.5,27.6 2.2,25.8 L14,4.3 Q14.7,3 16,3 Z", Triangle, "#A97500"),

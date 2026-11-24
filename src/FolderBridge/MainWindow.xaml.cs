@@ -87,7 +87,7 @@ public partial class MainWindow : XpWindow
 
     void SyncAll_Click(object sender, RoutedEventArgs e) => engine.Rescan();
 
-    void Settings_Click(object sender, RoutedEventArgs e) => new SettingsDialog(engine) { Owner = this }.ShowDialog();
+    void Settings_Click(object sender, RoutedEventArgs e) => ((App)Application.Current).ShowSettings(0);
 
     void Offer_Click(object sender, RoutedEventArgs e)
     {

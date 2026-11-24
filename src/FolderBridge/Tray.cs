@@ -35,7 +35,7 @@ sealed class Tray : IDisposable
 
     public void Notify(string title, string text)
     {
-        if (Snapshots.Enabled)
+        if (Snapshots.Enabled || !engine.Options.Notifications)
             return;
         var data = Data(NIF_INFO, null);
         data.szInfoTitle = title;
@@ -82,6 +82,7 @@ sealed class Tray : IDisposable
             _ when s.Folders.Any(f => f.State == FolderState.Error) => "A folder needs attention",
             _ when s.Folders.Any(f => f.State is FolderState.Syncing or FolderState.Scanning || f.Sending) => "Syncing...",
             _ when s.Folders.All(f => f.Paused) => "Paused",
+            _ when s.Folders.All(f => f.State == FolderState.Waiting) => s.Folders[0].WaitReason ?? "Waiting",
             _ when s.Devices.All(d => !d.Connected) => "Waiting for other computers",
             _ => "Up to date",
         };
@@ -90,13 +91,46 @@ sealed class Tray : IDisposable
 
     void ShowMenu()
     {
+        var o = engine.Options;
         var allPaused = engine.Snapshot().Folders is { Count: > 0 } folders && folders.All(f => f.Paused);
         var menu = new ContextMenu { Placement = PlacementMode.MousePoint };
-        menu.Items.Add(Item("Open Folder Bridge", app.ShowMain, true));
-        menu.Items.Add(Item("Sync all now", () => engine.Rescan()));
-        menu.Items.Add(Item(allPaused ? "Resume all" : "Pause all", () => engine.SetAllPaused(!allPaused)));
+        menu.Items.Add(Item("Open Folder Bridge", app.ShowMain, bold: true));
+        menu.Items.Add(Item("Sync now", () => engine.Rescan()));
         menu.Items.Add(new Separator());
+
+        var sync = new MenuItem { Header = "Sync" };
+        sync.Items.Add(Choice("As soon as something changes", o.Mode == SyncMode.Instant, () => Set(o with { Mode = SyncMode.Instant })));
+        var intervals = SyncText.Intervals.Contains(o.IntervalMinutes) ? SyncText.Intervals : [.. SyncText.Intervals, o.IntervalMinutes];
+        foreach (var minutes in intervals.Order())
+            sync.Items.Add(Choice(SyncText.Every(minutes), o.Mode == SyncMode.Interval && o.IntervalMinutes == minutes,
+                () => Set(o with { Mode = SyncMode.Interval, IntervalMinutes = minutes })));
+        sync.Items.Add(Choice("Only when I press Sync now", o.Mode == SyncMode.Manual, () => Set(o with { Mode = SyncMode.Manual })));
+        sync.Items.Add(Choice(SyncText.Hours(o), o.Mode == SyncMode.Hours, () => Set(o with { Mode = SyncMode.Hours })));
+        sync.Items.Add(new Separator());
+        sync.Items.Add(Item("Schedule and load settings...", () => app.ShowSettings(1)));
+        menu.Items.Add(sync);
+
+        var cpu = new MenuItem { Header = "Computer load" };
+        foreach (var mode in Enum.GetValues<CpuMode>())
+            cpu.Items.Add(Choice(SyncText.Cpu(mode), o.Cpu == mode, () => Set(o with { Cpu = mode })));
+        menu.Items.Add(cpu);
+
+        menu.Items.Add(Item(allPaused ? "Resume all folders" : "Pause all folders", () => engine.SetAllPaused(!allPaused)));
+        menu.Items.Add(new Separator());
+        menu.Items.Add(Item("Settings...", () => app.ShowSettings(0)));
         menu.Items.Add(Item("Exit", app.Quit));
+        if (Snapshots.Enabled)
+        {
+            var submenu = new ContextMenu();
+            foreach (var item in sync.Items.Cast<object>().ToList())
+            {
+                sync.Items.Remove(item);
+                submenu.Items.Add(item);
+            }
+            Snapshots.ShowMenu(menu, "TrayMenu");
+            Snapshots.ShowMenu(submenu, "TraySyncMenu");
+            return;
+        }
         menu.Opened += (_, _) =>
         {
             // Without focus the menu would stay open after clicking elsewhere.
@@ -106,10 +140,20 @@ sealed class Tray : IDisposable
         menu.IsOpen = true;
     }
 
+    void Set(SyncOptions options) => engine.UpdateOptions(options);
+
     static MenuItem Item(string header, Action action, bool bold = false)
     {
         var item = new MenuItem { Header = header, FontWeight = bold ? FontWeights.Bold : FontWeights.Normal };
         item.Click += (_, _) => action();
+        return item;
+    }
+
+    static MenuItem Choice(string header, bool selected, Action action)
+    {
+        var item = Item(header, action);
+        item.IsChecked = selected;
+        item.Tag = "Radio";
         return item;
     }
 
