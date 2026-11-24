@@ -11,11 +11,12 @@ public sealed class FolderSync : IDisposable
 {
     public const string MetaDir = ".folderbridge";
     public const int ChunkSize = 256 * 1024;
-    const int Pipeline = 6;
+    const int Pipeline = 4;
     const int BatchSize = 500;
     const int MaxDirtyPaths = 2000;
     static readonly TimeSpan FullScanInterval = TimeSpan.FromMinutes(30);
     static readonly TimeSpan RetryInterval = TimeSpan.FromMinutes(1);
+    static readonly TimeSpan TombstoneLifetime = TimeSpan.FromDays(90);
     static readonly long MinTicks = new DateTime(1980, 1, 1, 0, 0, 0, DateTimeKind.Utc).Ticks;
 
     readonly Engine engine;
@@ -35,7 +36,7 @@ public sealed class FolderSync : IDisposable
     bool fullScanRequested = true;
     volatile bool pullRequested;
     bool indexDirty, saveScheduled, tmpReady;
-    int fileCount, conflictCount;
+    int fileCount, conflictCount, doneFiles;
     long byteCount, doneBytes, bytesIn, bytesOut;
     DateTime lastSendUtc, lastFullScan;
 
@@ -45,7 +46,7 @@ public sealed class FolderSync : IDisposable
     public FolderState State { get; private set; }
     public string? Error { get; private set; }
     public int NeedFiles { get; private set; }
-    public int DoneFiles { get; private set; }
+    public int DoneFiles => doneFiles;
     public long NeedBytes { get; private set; }
     public string? CurrentFile { get; private set; }
     public DeviceId? CurrentPeer { get; private set; }
@@ -160,11 +161,16 @@ public sealed class FolderSync : IDisposable
     async Task RunAsync()
     {
         var ct = cts.Token;
-        CleanMeta();
+        var lastMaintenance = DateTime.MinValue;
         while (!ct.IsCancellationRequested)
         {
             try
             {
+                if (DateTime.UtcNow - lastMaintenance > TimeSpan.FromDays(1))
+                {
+                    lastMaintenance = DateTime.UtcNow;
+                    Maintain();
+                }
                 await PassAsync(ct);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -393,7 +399,8 @@ public sealed class FolderSync : IDisposable
                     continue;
                 if (unreadable.Count > 0 && UnderAny(e.Path, unreadableLookup))
                     continue;
-                changed.Add(e with { Deleted = true, Hash = null, Size = 0, Version = e.Version.Increment(me) });
+                // For deletion records ModifiedTicks holds the time of deletion, used to expire them.
+                changed.Add(e with { Deleted = true, Hash = null, Size = 0, ModifiedTicks = DateTime.UtcNow.Ticks, Version = e.Version.Increment(me) });
             }
         }
     }
@@ -531,12 +538,14 @@ public sealed class FolderSync : IDisposable
         engine.CountWork();
         NeedFiles = needs.Count(n => n.Entry.IsFile);
         NeedBytes = needs.Where(n => n.Entry.IsFile).Sum(n => n.Entry.Size);
-        DoneFiles = 0;
+        doneFiles = 0;
         Interlocked.Exchange(ref doneBytes, 0);
         int failed = 0;
         bool conflicts = false;
         var adopted = new List<FileEntry>();
 
+        // One file at a time: fetching several at once was measured to be slower, since creating files
+        // in parallel mostly adds file system and antivirus contention.
         foreach (var (peer, entry) in needs)
         {
             if (ct.IsCancellationRequested || Config.Paused)
@@ -564,7 +573,7 @@ public sealed class FolderSync : IDisposable
                 ReportError(entry, ex);
             }
             if (entry.IsFile)
-                DoneFiles++;
+                doneFiles++;
             if (adopted.Count >= BatchSize)
                 Flush(adopted);
         }
@@ -895,13 +904,16 @@ public sealed class FolderSync : IDisposable
         meta.Attributes |= FileAttributes.Hidden;
     }
 
-    void CleanMeta()
+    // Runs on start and then daily: leftovers of interrupted downloads, trash older than 30 days,
+    // and deletion records old enough that every device has long since seen them.
+    void Maintain()
     {
         try
         {
             var tmp = Path.Combine(Root, MetaDir, "tmp");
             if (Directory.Exists(tmp))
                 Directory.Delete(tmp, true);
+            tmpReady = false;
             var trash = new DirectoryInfo(Path.Combine(Root, MetaDir, "trash"));
             if (trash.Exists)
                 foreach (var day in trash.GetDirectories())
@@ -911,6 +923,17 @@ public sealed class FolderSync : IDisposable
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
         }
+
+        var cutoff = DateTime.UtcNow.Add(-TombstoneLifetime).Ticks;
+        lock (gate)
+        {
+            var expired = index.Values.Where(e => e.Deleted && e.ModifiedTicks < cutoff).Select(e => e.Path).ToList();
+            foreach (var path in expired)
+                index.Remove(path);
+            if (expired.Count > 0)
+                indexDirty = true;
+        }
+        ScheduleSave();
     }
 
     void MoveToTrash(string full, string rel)
@@ -1010,12 +1033,17 @@ public sealed class FolderSync : IDisposable
         return full;
     }
 
+    // System clutter, Office lock and temp files, and browser downloads that haven't finished yet.
     public static bool IsIgnored(string name) =>
         name.Equals(MetaDir, StringComparison.OrdinalIgnoreCase)
         || name.Equals("Thumbs.db", StringComparison.OrdinalIgnoreCase)
         || name.Equals("desktop.ini", StringComparison.OrdinalIgnoreCase)
         || name.Equals(".DS_Store", StringComparison.Ordinal)
-        || name.StartsWith("~$", StringComparison.Ordinal);
+        || name.StartsWith("~$", StringComparison.Ordinal)
+        || (name.StartsWith('~') && name.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase))
+        || name.EndsWith(".crdownload", StringComparison.OrdinalIgnoreCase)
+        || name.EndsWith(".partial", StringComparison.OrdinalIgnoreCase)
+        || name.EndsWith(".part", StringComparison.OrdinalIgnoreCase);
 
     static readonly char[] InvalidChars = Path.GetInvalidFileNameChars();
 

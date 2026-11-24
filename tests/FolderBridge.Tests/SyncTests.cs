@@ -47,7 +47,9 @@ public sealed class SyncTests : IAsyncLifetime
     Engine CreateEngine(string name)
     {
         var dataDir = Directory.CreateDirectory(Path.Combine(root, "data" + name)).FullName;
-        File.WriteAllText(Path.Combine(dataDir, "config.json"), $$"""{"deviceName":"{{name}}","listenPort":0}""");
+        var config = Path.Combine(dataDir, "config.json");
+        if (!File.Exists(config))
+            File.WriteAllText(config, $$"""{"deviceName":"{{name}}","listenPort":0}""");
         return new Engine(dataDir, new EngineOptions { ListenAddress = IPAddress.Loopback, Discovery = false });
     }
 
@@ -145,6 +147,94 @@ public sealed class SyncTests : IAsyncLifetime
         var trashed = Directory.GetFiles(Path.Combine(dirB, ".folderbridge", "trash"), "old.txt", SearchOption.AllDirectories);
         Assert.Single(trashed);
         Assert.Equal("bye", File.ReadAllText(trashed[0]));
+    }
+
+    [Fact]
+    public async Task ManySmallFilesArrive()
+    {
+        for (int i = 0; i < 300; i++)
+            File.WriteAllText(Path.Combine(dirA, $"small{i:D3}.txt"), $"file {i}");
+        await WaitUntil(() => Directory.GetFiles(dirB, "small*.txt").Length == 300, 60);
+        Assert.Equal("file 123", File.ReadAllText(Path.Combine(dirB, "small123.txt")));
+        await WaitUntil(() => b.Snapshot().Folders.Single().LocalFiles == 300);
+    }
+
+    [Fact]
+    public async Task AnEditBeatsADeletion()
+    {
+        File.WriteAllText(Path.Combine(dirA, "keep.txt"), "v1");
+        await WaitUntil(() => HasText(Path.Combine(dirB, "keep.txt"), "v1"));
+        var folderId = a.Snapshot().Folders.Single().Id;
+        b.SetPaused(folderId, true);
+        await WaitUntil(() => b.Snapshot().Folders.Single().State == Core.Sync.FolderState.Paused);
+
+        File.Delete(Path.Combine(dirA, "keep.txt"));
+        File.WriteAllText(Path.Combine(dirB, "keep.txt"), "v2 from B");
+        await WaitUntil(() => a.Snapshot().Folders.Single().LocalFiles == 0);
+        await Task.Delay(1500);
+        b.SetPaused(folderId, false);
+
+        await WaitUntil(() => HasText(Path.Combine(dirA, "keep.txt"), "v2 from B"));
+        Assert.Equal("v2 from B", File.ReadAllText(Path.Combine(dirB, "keep.txt")));
+    }
+
+    [Fact]
+    public async Task RestartKeepsEverythingInSync()
+    {
+        File.WriteAllText(Path.Combine(dirA, "before.txt"), "before");
+        await WaitUntil(() => HasText(Path.Combine(dirB, "before.txt"), "before"));
+
+        b.Dispose();
+        b = CreateEngine("B");
+        b.Start();
+        await WaitUntil(() => b.Snapshot().Devices.Any(d => d.Connected));
+
+        File.WriteAllText(Path.Combine(dirA, "after.txt"), "after");
+        File.WriteAllText(Path.Combine(dirB, "before.txt"), "edited after restart");
+        await WaitUntil(() => HasText(Path.Combine(dirB, "after.txt"), "after"));
+        await WaitUntil(() => HasText(Path.Combine(dirA, "before.txt"), "edited after restart"));
+        Assert.Empty(Directory.GetFiles(dirA, "*.conflict-*"));
+        Assert.Empty(Directory.GetFiles(dirB, "*.conflict-*"));
+    }
+
+    [Fact]
+    public async Task IgnoredFolderCanBeOfferedAgain()
+    {
+        var offers = new List<FolderOffer>();
+        b.FolderOffered += o =>
+        {
+            lock (offers)
+                offers.Add(o);
+        };
+        a.AddFolder("Second", Directory.CreateDirectory(Path.Combine(root, "secondA")).FullName, [b.Id]);
+        await WaitUntil(() => { lock (offers) return offers.Count == 1; });
+
+        b.IgnoreOffer(offers[0]);
+        Assert.Empty(b.Snapshot().Offers);
+        Assert.Equal(1, b.IgnoredOffers);
+
+        b.AskAgainAboutIgnored();
+        await WaitUntil(() => { lock (offers) return offers.Count == 2; });
+        Assert.Equal("Second", b.Snapshot().Offers.Single().FolderName);
+        Assert.Equal(0, b.IgnoredOffers);
+    }
+
+    [Fact]
+    public async Task DeclinedPairingChangesNothing()
+    {
+        using var c = CreateEngine("C");
+        c.Start();
+        var incoming = new TaskCompletionSource<PairingSession>();
+        a.PairingRequested += s => incoming.TrySetResult(s);
+        var outgoing = await c.StartPairingAsync(new IPEndPoint(IPAddress.Loopback, a.ListenPort), "A");
+        var atA = await incoming.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        await outgoing.ConfirmAsync();
+        atA.Cancel();
+
+        await WaitUntil(() => outgoing.State == PairingState.Rejected);
+        Assert.Equal(PairingState.Rejected, atA.State);
+        Assert.DoesNotContain(a.Snapshot().Devices, d => d.Id == c.Id);
+        Assert.Empty(c.Snapshot().Devices);
     }
 
     [Fact]

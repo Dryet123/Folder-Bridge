@@ -16,7 +16,7 @@ public enum MessageType : byte
     Unpair,
 }
 
-public sealed record HelloMessage(string Name, int Port);
+public sealed record HelloMessage(string Name, int Port, int Protocol = 1);
 
 public sealed record SharedFolder(string Id, string Name);
 

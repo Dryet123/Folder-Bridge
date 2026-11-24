@@ -10,7 +10,7 @@ Closing the window keeps Folder Bridge running in the tray. On first start Windo
 
 ## What happens to your files
 
-Every file is checked with SHA-256 after it arrives and only then replaces the old copy. Files deleted on one computer are moved to the hidden `.folderbridge\trash` folder on the other and kept there for 30 days. If the same file was changed on both computers before they could sync, the newer edit wins and the other one is kept next to it as `name.conflict-COMPUTER-date.ext`.
+Every file is checked with SHA-256 after it arrives and only then replaces the old copy. Files deleted on one computer are moved to the hidden `.folderbridge\trash` folder on the other and kept there for 30 days. If the same file was changed on both computers before they could sync, the newer edit wins and the other one is kept next to it as `name.conflict-COMPUTER-date.ext`. Office lock files, `Thumbs.db`, `desktop.ini` and browser downloads that are still in progress are left out.
 
 ## Building
 

@@ -26,6 +26,7 @@ public sealed class ActivityLog : IDisposable
     readonly string? path;
     readonly Timer flushTimer;
     long total;
+    int linesOnDisk;
     bool flushScheduled;
 
     public ActivityLog(string? path = null)
@@ -49,8 +50,12 @@ public sealed class ActivityLog : IDisposable
                 }
             }
             total = recent.Count;
+            linesOnDisk = lines.Length;
             if (lines.Length > Capacity * 2)
+            {
                 File.WriteAllLines(path, lines.TakeLast(Capacity));
+                linesOnDisk = Capacity;
+            }
         }
         catch (IOException)
         {
@@ -96,16 +101,28 @@ public sealed class ActivityLog : IDisposable
     void Flush()
     {
         List<string> lines;
+        bool rewrite;
         lock (gate)
         {
             flushScheduled = false;
             if (unsaved.Count == 0)
                 return;
-            lines = unsaved.Select(e => JsonSerializer.Serialize(e, Json.Options)).ToList();
+            // A long session can log far more than is kept; rewrite the file with just the recent part now and then.
+            rewrite = linesOnDisk + unsaved.Count > Capacity * 3;
+            lines = (rewrite ? recent.ToList() : unsaved).Select(e => JsonSerializer.Serialize(e, Json.Options)).ToList();
             unsaved.Clear();
+            linesOnDisk = rewrite ? lines.Count : linesOnDisk + lines.Count;
         }
-        try { File.AppendAllLines(path!, lines); }
-        catch (IOException) { }
+        try
+        {
+            if (rewrite)
+                File.WriteAllLines(path!, lines);
+            else
+                File.AppendAllLines(path!, lines);
+        }
+        catch (IOException)
+        {
+        }
     }
 
     public void Dispose()

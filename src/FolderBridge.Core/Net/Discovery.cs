@@ -5,17 +5,25 @@ using System.Text.Json;
 
 namespace FolderBridge.Core.Net;
 
-// Announces this device on the LAN every few seconds over multicast and broadcast,
-// and reports announcements from other devices.
+// Announces this device on the LAN over multicast and broadcast and reports announcements from others.
+// Announcements are frequent for a while after start, a network change or a request to look around,
+// and slow otherwise; a device that shows up for the first time gets an immediate answer.
 public sealed class Discovery : IDisposable
 {
     public const int Port = 22027;
+    public static readonly TimeSpan SlowInterval = TimeSpan.FromSeconds(15);
+    static readonly TimeSpan FastInterval = TimeSpan.FromSeconds(5);
+    static readonly TimeSpan FastPeriod = TimeSpan.FromMinutes(2);
     static readonly IPAddress Group = IPAddress.Parse("239.255.70.66");
 
     readonly DeviceId me;
     readonly Func<(string Name, int Port)> info;
     readonly Action<string> log;
     readonly CancellationTokenSource cts = new();
+    readonly SemaphoreSlim nudge = new(0);
+    readonly object gate = new();
+    List<(IPAddress Address, IPAddress Mask)> interfaces = [];
+    DateTime fastUntil, lastSent;
     Socket? receiver;
     UdpClient? sender;
 
@@ -28,19 +36,15 @@ public sealed class Discovery : IDisposable
         this.log = log;
     }
 
-
     public void Start()
     {
+        interfaces = LocalInterfaces();
         try
         {
             receiver = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) { ExclusiveAddressUse = false };
             receiver.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
             receiver.Bind(new IPEndPoint(IPAddress.Any, Port));
-            foreach (var (address, _) in LocalInterfaces())
-            {
-                try { receiver.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.AddMembership, new MulticastOption(Group, address)); }
-                catch (SocketException) { }
-            }
+            JoinGroup();
             _ = ReceiveLoop(receiver);
         }
         catch (Exception ex)
@@ -48,13 +52,37 @@ public sealed class Discovery : IDisposable
             log($"Discovery can't listen on UDP {Port}: {ex.Message}");
         }
         sender = new UdpClient(AddressFamily.InterNetwork) { EnableBroadcast = true, MulticastLoopback = true };
+        NetworkChange.NetworkAddressChanged += OnNetworkChanged;
+        LookAround();
         _ = SendLoop();
+    }
+
+    // Announce often for a while, e.g. while the user is looking for a computer to pair with.
+    public void LookAround()
+    {
+        lock (gate)
+            fastUntil = DateTime.UtcNow + FastPeriod;
+        nudge.Release();
     }
 
     public void AnnounceNow()
     {
+        lock (gate)
+        {
+            if (DateTime.UtcNow - lastSent < TimeSpan.FromSeconds(1))
+                return;
+            lastSent = DateTime.UtcNow;
+        }
         try { Send(); }
-        catch (Exception ex) { log($"Discovery send failed: {ex.Message}"); }
+        catch (Exception ex) when (ex is SocketException or ObjectDisposedException) { log($"Discovery send failed: {ex.Message}"); }
+    }
+
+    void OnNetworkChanged(object? sender, EventArgs e)
+    {
+        // A new Wi-Fi or cable connection brings new addresses; the group has to be joined on them again.
+        interfaces = LocalInterfaces();
+        JoinGroup();
+        LookAround();
     }
 
     async Task SendLoop()
@@ -62,8 +90,22 @@ public sealed class Discovery : IDisposable
         while (!cts.IsCancellationRequested)
         {
             AnnounceNow();
-            try { await Task.Delay(5000, cts.Token); }
+            TimeSpan wait;
+            lock (gate)
+                wait = DateTime.UtcNow < fastUntil ? FastInterval : SlowInterval;
+            try { await nudge.WaitAsync(wait, cts.Token); }
             catch (OperationCanceledException) { return; }
+        }
+    }
+
+    void JoinGroup()
+    {
+        if (receiver == null)
+            return;
+        foreach (var (address, _) in interfaces)
+        {
+            try { receiver.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.AddMembership, new MulticastOption(Group, address)); }
+            catch (SocketException) { }
         }
     }
 
@@ -74,7 +116,7 @@ public sealed class Discovery : IDisposable
         var (name, port) = info();
         var data = JsonSerializer.SerializeToUtf8Bytes(new Announcement("folderbridge", 1, me.Value, name, port), Json.Options);
         var targets = new HashSet<IPEndPoint> { new(IPAddress.Broadcast, Port) };
-        foreach (var (address, mask) in LocalInterfaces())
+        foreach (var (address, mask) in interfaces)
         {
             try
             {
@@ -118,16 +160,24 @@ public sealed class Discovery : IDisposable
         }
     }
 
-    static IEnumerable<(IPAddress Address, IPAddress Mask)> LocalInterfaces()
+    static List<(IPAddress Address, IPAddress Mask)> LocalInterfaces()
     {
-        foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
+        var result = new List<(IPAddress, IPAddress)>();
+        try
         {
-            if (nic.OperationalStatus != OperationalStatus.Up || nic.NetworkInterfaceType == NetworkInterfaceType.Loopback)
-                continue;
-            foreach (var u in nic.GetIPProperties().UnicastAddresses)
-                if (u.Address.AddressFamily == AddressFamily.InterNetwork)
-                    yield return (u.Address, u.IPv4Mask);
+            foreach (var nic in NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (nic.OperationalStatus != OperationalStatus.Up || nic.NetworkInterfaceType == NetworkInterfaceType.Loopback)
+                    continue;
+                foreach (var u in nic.GetIPProperties().UnicastAddresses)
+                    if (u.Address.AddressFamily == AddressFamily.InterNetwork)
+                        result.Add((u.Address, u.IPv4Mask));
+            }
         }
+        catch (NetworkInformationException)
+        {
+        }
+        return result;
     }
 
     static IPAddress DirectedBroadcast(IPAddress address, IPAddress mask)
@@ -141,6 +191,7 @@ public sealed class Discovery : IDisposable
 
     public void Dispose()
     {
+        NetworkChange.NetworkAddressChanged -= OnNetworkChanged;
         cts.Cancel();
         receiver?.Dispose();
         sender?.Dispose();

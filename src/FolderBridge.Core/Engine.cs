@@ -18,6 +18,7 @@ public sealed class Engine : IDisposable
 {
     // Small enough that a batch never lands on the large object heap.
     const int IndexBatch = 300;
+    const int ProtocolVersion = 1;
 
     readonly object gate = new();
     readonly object logGate = new();
@@ -28,6 +29,7 @@ public sealed class Engine : IDisposable
     readonly Dictionary<string, FolderSync> folders = [];
     readonly Dictionary<DeviceId, Connection> connections = [];
     readonly Dictionary<DeviceId, HashSet<string>> peerFolders = [];
+    readonly Dictionary<DeviceId, List<SharedFolder>> peerShared = [];
     readonly Dictionary<DeviceId, HashSet<string>> activeFolders = [];
     readonly Dictionary<DeviceId, NearbyDevice> nearby = [];
     readonly HashSet<DeviceId> connecting = [];
@@ -268,6 +270,27 @@ public sealed class Engine : IDisposable
         });
     }
 
+    public int IgnoredOffers
+    {
+        get { lock (gate) return config.IgnoredOffers.Count; }
+    }
+
+    // Undoes "Ignore": folders still shared by connected computers are offered again.
+    public void AskAgainAboutIgnored()
+    {
+        var fresh = new List<FolderOffer>();
+        lock (gate)
+        {
+            config.IgnoredOffers.Clear();
+            SaveConfig();
+            foreach (var (peer, shared) in peerShared)
+                if (connections.TryGetValue(peer, out var conn))
+                    fresh.AddRange(CollectOffers(peer, conn.PeerName, shared));
+        }
+        foreach (var offer in fresh)
+            FolderOffered?.Invoke(offer);
+    }
+
     public void IgnoreOffer(FolderOffer offer)
     {
         lock (gate)
@@ -303,7 +326,7 @@ public sealed class Engine : IDisposable
             StartListener();
         }
         foreach (var c in conns)
-            _ = c.TrySendAsync(MessageType.Hello, new HelloMessage(DeviceName, ListenPort));
+            _ = c.TrySendAsync(MessageType.Hello, new HelloMessage(DeviceName, ListenPort, ProtocolVersion));
         discovery?.AnnounceNow();
     }
 
@@ -342,7 +365,14 @@ public sealed class Engine : IDisposable
             return config.Devices.Any(d => d.Id == id.Value);
     }
 
-    bool Shares(FolderConfig fc, DeviceId peer) => fc.Devices.Contains(peer.Value) && IsPaired(peer);
+    bool Shares(FolderConfig fc, DeviceId peer)
+    {
+        lock (gate)
+            return fc.Devices.Contains(peer.Value) && config.Devices.Any(d => d.Id == peer.Value);
+    }
+
+    // Called while the user is looking for a computer to pair with.
+    public void LookAround() => discovery?.LookAround();
 
     internal bool IsConnected(DeviceId id)
     {
@@ -588,7 +618,7 @@ public sealed class Engine : IDisposable
     {
         try
         {
-            await conn.SendAsync(MessageType.Hello, new HelloMessage(DeviceName, ListenPort));
+            await conn.SendAsync(MessageType.Hello, new HelloMessage(DeviceName, ListenPort, ProtocolVersion));
             await SendClusterConfig(conn);
         }
         catch
@@ -623,6 +653,7 @@ public sealed class Engine : IDisposable
                 return false;
             connections.Remove(conn.PeerId);
             peerFolders.Remove(conn.PeerId);
+            peerShared.Remove(conn.PeerId);
             activeFolders.Remove(conn.PeerId);
             affected = folders.Values.ToList();
         }
@@ -677,6 +708,8 @@ public sealed class Engine : IDisposable
     {
         var name = m.Name.Length > 64 ? m.Name[..64] : m.Name;
         conn.PeerName = name;
+        if (m.Protocol != ProtocolVersion)
+            Log($"{name} speaks protocol {m.Protocol}, this copy speaks {ProtocolVersion}; update both to the same version");
         lock (gate)
         {
             var device = config.Devices.FirstOrDefault(d => d.Id == conn.PeerId.Value);
@@ -694,24 +727,32 @@ public sealed class Engine : IDisposable
     async Task OnClusterConfig(Connection conn, ClusterConfigMessage m)
     {
         var peer = conn.PeerId;
-        var fresh = new List<FolderOffer>();
+        List<FolderOffer> fresh;
         lock (gate)
         {
             var ids = m.Folders.Select(f => f.Id).ToHashSet();
             peerFolders[peer] = ids;
+            peerShared[peer] = m.Folders;
             offers.RemoveAll(o => o.DeviceId == peer && !ids.Contains(o.FolderId));
-            foreach (var sf in m.Folders)
-            {
-                if (folders.ContainsKey(sf.Id) || config.IgnoredOffers.Contains(sf.Id) || offers.Any(o => o.FolderId == sf.Id))
-                    continue;
-                var offer = new FolderOffer(peer, conn.PeerName, sf.Id, sf.Name.Length > 100 ? sf.Name[..100] : sf.Name);
-                offers.Add(offer);
-                fresh.Add(offer);
-            }
+            fresh = CollectOffers(peer, conn.PeerName, m.Folders);
         }
         foreach (var offer in fresh)
             FolderOffered?.Invoke(offer);
         await RefreshActive(conn);
+    }
+
+    List<FolderOffer> CollectOffers(DeviceId peer, string peerName, List<SharedFolder> shared)
+    {
+        var fresh = new List<FolderOffer>();
+        foreach (var sf in shared)
+        {
+            if (folders.ContainsKey(sf.Id) || config.IgnoredOffers.Contains(sf.Id) || offers.Any(o => o.FolderId == sf.Id))
+                continue;
+            var offer = new FolderOffer(peer, peerName, sf.Id, sf.Name.Length > 100 ? sf.Name[..100] : sf.Name);
+            offers.Add(offer);
+            fresh.Add(offer);
+        }
+        return fresh;
     }
 
     async Task RefreshActive(Connection conn)
@@ -830,24 +871,40 @@ public sealed class Engine : IDisposable
 
     void OnSeen(DeviceId id, string name, IPEndPoint endPoint)
     {
-        bool connectNow;
+        bool connectNow, isNew;
         lock (gate)
         {
+            isNew = !nearby.ContainsKey(id);
             nearby[id] = new NearbyDevice(id, name, endPoint, DateTime.UtcNow);
             connectNow = config.Devices.Any(d => d.Id == id.Value) && !connections.ContainsKey(id) && connecting.Add(id);
         }
+        // Answer a newcomer right away so it doesn't wait for our next slow announcement.
+        if (isNew)
+            discovery?.AnnounceNow();
         if (connectNow)
             _ = ConnectAsync(id, [endPoint]);
     }
 
     void Tick()
     {
+        try
+        {
+            TickCore();
+        }
+        catch (Exception ex)
+        {
+            Log($"Housekeeping failed: {ex}");
+        }
+    }
+
+    void TickCore()
+    {
         var now = DateTime.UtcNow;
         var toConnect = new List<(DeviceId Id, List<IPEndPoint> EndPoints)>();
         List<Connection> conns;
         lock (gate)
         {
-            foreach (var stale in nearby.Values.Where(n => now - n.Seen > TimeSpan.FromSeconds(20)).ToList())
+            foreach (var stale in nearby.Values.Where(n => now - n.Seen > Discovery.SlowInterval * 3).ToList())
                 nearby.Remove(stale.Id);
             foreach (var d in config.Devices)
             {

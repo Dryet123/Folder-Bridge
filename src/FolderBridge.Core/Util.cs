@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -74,10 +75,12 @@ public static class Format
             v /= 1024;
             i++;
         }
-        return i == 0 ? $"{bytes} B" : v >= 100 ? $"{v:0} {units[i]}" : $"{v:0.#} {units[i]}";
+        // The UI is English, so numbers use a dot whatever the Windows region says.
+        var number = (v >= 100 ? v.ToString("0", CultureInfo.InvariantCulture) : v.ToString("0.#", CultureInfo.InvariantCulture));
+        return i == 0 ? $"{bytes} B" : $"{number} {units[i]}";
     }
 
     public static string Speed(double bytesPerSecond) => bytesPerSecond < 1024 ? "0 KB/s" : Bytes((long)bytesPerSecond) + "/s";
 
-    public static string Count(long n) => n.ToString("#,0").Replace(',', ' ');
+    public static string Count(long n) => n.ToString("#,0", CultureInfo.InvariantCulture).Replace(',', ' ');
 }
