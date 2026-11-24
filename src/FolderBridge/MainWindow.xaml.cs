@@ -1,5 +1,4 @@
-﻿using System.ComponentModel;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -13,7 +12,8 @@ public partial class MainWindow : XpWindow
 {
     readonly Engine engine;
     readonly MainViewModel vm;
-    readonly Dictionary<string, OfferDialog> openOffers = [];
+    readonly DispatcherTimer timer;
+    long activityCursor;
     bool syncingSelection;
 
     public MainWindow(Engine engine)
@@ -24,20 +24,18 @@ public partial class MainWindow : XpWindow
         vm = new MainViewModel(engine);
         DataContext = vm;
         Refresh();
-        foreach (var entry in engine.Activity.Recent())
-            vm.AddActivity(entry);
-        engine.Activity.Added += e => Dispatcher.BeginInvoke(() => vm.AddActivity(e));
 
-        var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+        timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
         timer.Tick += (_, _) => Refresh();
         timer.Start();
+        Closed += (_, _) => timer.Stop();
     }
-
-    public EngineSnapshot? Snapshot => vm.Last;
 
     void Refresh()
     {
         vm.Update(engine.Snapshot());
+        foreach (var entry in engine.Activity.Since(ref activityCursor))
+            vm.AddActivity(entry);
         SyncSelection();
     }
 
@@ -95,7 +93,7 @@ public partial class MainWindow : XpWindow
     void Offer_Click(object sender, RoutedEventArgs e)
     {
         if (ContextOf<OfferVm>(sender) is { } offer)
-            ShowOffer(offer.Offer, true);
+            ((App)Application.Current).ShowOffer(offer.Offer, true);
     }
 
     void PauseFolder_Click(object sender, RoutedEventArgs e)
@@ -135,38 +133,5 @@ public partial class MainWindow : XpWindow
             engine.Unpair(device.Id);
             Refresh();
         }
-    }
-
-    public void ShowIncomingPairing(PairingSession session)
-    {
-        var dialog = new PairDialog(engine, session) { ShowActivated = false };
-        if (IsVisible)
-            dialog.Owner = this;
-        dialog.Show();
-    }
-
-    public void ShowOffer(FolderOffer offer, bool activate)
-    {
-        if (openOffers.TryGetValue(offer.FolderId, out var open))
-        {
-            open.Activate();
-            return;
-        }
-        var dialog = new OfferDialog(engine, offer) { ShowActivated = activate && !Snapshots.Enabled };
-        if (IsVisible)
-            dialog.Owner = this;
-        openOffers[offer.FolderId] = dialog;
-        dialog.Closed += (_, _) => openOffers.Remove(offer.FolderId);
-        dialog.Show();
-    }
-
-    protected override void OnClosing(CancelEventArgs e)
-    {
-        if (!App.IsExiting)
-        {
-            e.Cancel = true;
-            Hide();
-        }
-        base.OnClosing(e);
     }
 }

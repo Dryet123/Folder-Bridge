@@ -6,17 +6,22 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <UseWindowsForms>true</UseWindowsForms>
     <AssemblyName>FolderBridge</AssemblyName>
     <RootNamespace>FolderBridge</RootNamespace>
     <Product>Folder Bridge</Product>
-    <Version>0.1.0</Version>
+    <Version>1.0.0</Version>
     <ApplicationIcon Condition="Exists('FolderBridge.ico')">FolderBridge.ico</ApplicationIcon>
   </PropertyGroup>
 
+  <!-- Footprint: a background sync app should stay small and quiet. -->
+  <PropertyGroup>
+    <ConcurrentGarbageCollection>false</ConcurrentGarbageCollection>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <PublishReadyToRun>true</PublishReadyToRun>
+  </PropertyGroup>
+
   <ItemGroup>
-    <Using Remove="System.Windows.Forms" />
-    <Using Remove="System.Drawing" />
+    <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="7" />
   </ItemGroup>
 
   <ItemGroup>

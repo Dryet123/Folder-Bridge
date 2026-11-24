@@ -1,23 +1,29 @@
 ﻿using System.IO;
 using System.Net;
+using System.Runtime;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Threading;
 using FolderBridge.Core;
+using FolderBridge.Dialogs;
 
 namespace FolderBridge;
 
 public partial class App : Application
 {
+    readonly Dictionary<string, OfferDialog> openOffers = [];
     Mutex? instance;
-    Engine? engine;
+    Engine engine = null!;
     Tray? tray;
     MainWindow? main;
+    bool memoryDirty = true;
+    long lastWork;
 
-    public static bool IsExiting { get; private set; }
     public static ImageSource WindowIcon { get; private set; } = null!;
 
     protected override void OnStartup(StartupEventArgs e)
@@ -81,45 +87,49 @@ public partial class App : Application
             ex.Handled = true;
         };
 
-        main = new MainWindow(engine);
         tray = new Tray(this, engine);
         engine.PairingRequested += s => Dispatcher.BeginInvoke(() =>
         {
-            main.ShowIncomingPairing(s);
-            if (!main.IsVisible)
+            var dialog = new PairDialog(engine, s) { ShowActivated = false, Owner = VisibleMain };
+            dialog.Show();
+            if (VisibleMain == null)
                 tray.Notify("Pairing request", $"{s.PeerName} wants to pair with this computer.");
         });
         engine.FolderOffered += o => Dispatcher.BeginInvoke(() =>
         {
-            main.ShowOffer(o, false);
-            if (!main.IsVisible)
+            ShowOffer(o, false);
+            if (VisibleMain == null)
                 tray.Notify("Shared folder", $"{o.DeviceName} wants to share \"{o.FolderName}\".");
         });
-        Listen(showSignal, ShowMain);
-        Listen(exitSignal, Quit);
+        OnSignal(showSignal, ShowMain);
+        OnSignal(exitSignal, Quit);
         Snapshots.Start();
+
+        var housekeeping = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
+        housekeeping.Tick += (_, _) => Housekeep();
+        housekeeping.Start();
 
         if (!args.Contains("--tray"))
             ShowMain();
     }
 
-    void Listen(EventWaitHandle signal, Action action)
-    {
-        var thread = new Thread(() =>
-        {
-            while (true)
-            {
-                signal.WaitOne();
-                Dispatcher.BeginInvoke(action);
-            }
-        }) { IsBackground = true };
-        thread.Start();
-    }
+    MainWindow? VisibleMain => main is { IsVisible: true } ? main : null;
+
+    void OnSignal(EventWaitHandle signal, Action action) =>
+        ThreadPool.RegisterWaitForSingleObject(signal, (_, _) => Dispatcher.BeginInvoke(action), null, Timeout.Infinite, false);
 
     public void ShowMain()
     {
         if (main == null)
-            return;
+        {
+            // The window only exists while it is open; closing it frees the whole visual tree.
+            main = new MainWindow(engine);
+            main.Closed += (_, _) =>
+            {
+                main = null;
+                memoryDirty = true;
+            };
+        }
         main.Show();
         if (main.WindowState == WindowState.Minimized)
             main.WindowState = WindowState.Normal;
@@ -127,13 +137,51 @@ public partial class App : Application
             main.Activate();
     }
 
+    public void ShowOffer(FolderOffer offer, bool activate)
+    {
+        if (openOffers.TryGetValue(offer.FolderId, out var open))
+        {
+            open.Activate();
+            return;
+        }
+        var dialog = new OfferDialog(engine, offer) { ShowActivated = activate && !Snapshots.Enabled, Owner = VisibleMain };
+        openOffers[offer.FolderId] = dialog;
+        dialog.Closed += (_, _) => openOffers.Remove(offer.FolderId);
+        dialog.Show();
+    }
+
+    // With no window open, memory left over from a sync is handed back once things are quiet again.
+    void Housekeep()
+    {
+        if (main != null || Windows.Count > 0)
+            return;
+        var work = engine.WorkDone;
+        if (work != lastWork)
+        {
+            lastWork = work;
+            memoryDirty = true;
+        }
+        if (memoryDirty && !engine.IsBusy)
+        {
+            memoryDirty = false;
+            GCSettings.LargeObjectHeapCompactionMode = GCLargeObjectHeapCompactionMode.CompactOnce;
+            GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, true, true);
+            SetProcessWorkingSetSize(GetCurrentProcess(), -1, -1);
+        }
+    }
+
     public void Quit()
     {
-        IsExiting = true;
         tray?.Dispose();
-        engine?.Dispose();
+        engine.Dispose();
         main?.Close();
         instance?.ReleaseMutex();
         Shutdown();
     }
+
+    [DllImport("kernel32.dll")]
+    static extern IntPtr GetCurrentProcess();
+
+    [DllImport("kernel32.dll")]
+    static extern bool SetProcessWorkingSetSize(IntPtr process, nint min, nint max);
 }
