@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
@@ -15,7 +16,8 @@ public sealed class EngineOptions
 
 public sealed class Engine : IDisposable
 {
-    const int IndexBatch = 1000;
+    // Small enough that a batch never lands on the large object heap.
+    const int IndexBatch = 300;
 
     readonly object gate = new();
     readonly object logGate = new();
@@ -29,13 +31,14 @@ public sealed class Engine : IDisposable
     readonly Dictionary<DeviceId, HashSet<string>> activeFolders = [];
     readonly Dictionary<DeviceId, NearbyDevice> nearby = [];
     readonly HashSet<DeviceId> connecting = [];
+    readonly Dictionary<DeviceId, (int Failures, DateTime At)> retryAt = [];
     readonly List<FolderOffer> offers = [];
     readonly CancellationTokenSource cts = new();
     TcpListener? listener;
     Discovery? discovery;
     Timer? timer;
     PairingSession? incomingSession;
-    long bytesIn, bytesOut;
+    long bytesIn, bytesOut, workDone;
     int ticks;
 
     sealed record NearbyDevice(DeviceId Id, string Name, IPEndPoint EndPoint, DateTime Seen);
@@ -77,6 +80,16 @@ public sealed class Engine : IDisposable
     {
         get { lock (gate) return config.DeviceName; }
     }
+
+    public bool IsBusy
+    {
+        get { lock (gate) return folders.Values.Any(f => f.IsBusy); }
+    }
+
+    // Grows whenever a scan, a download pass or an upload happens; lets the app notice short bursts of work.
+    public long WorkDone => Interlocked.Read(ref workDone);
+
+    internal void CountWork() => Interlocked.Increment(ref workDone);
 
     public int ListenPort => (listener?.LocalEndpoint as IPEndPoint)?.Port ?? config.ListenPort;
 
@@ -237,7 +250,11 @@ public sealed class Engine : IDisposable
         foreach (var f in targets)
             f.RequestScan();
         if (folderId == null)
+        {
+            lock (gate)
+                retryAt.Clear();
             Tick();
+        }
     }
 
     public void AcceptOffer(FolderOffer offer, string path)
@@ -297,7 +314,7 @@ public sealed class Engine : IDisposable
         lock (gate)
             connections.TryGetValue(id, out conn);
         if (conn != null)
-            _ = conn.TrySendAsync(MessageType.Unpair, new { }).ContinueWith(_ => conn.Close());
+            _ = conn.TrySendAsync(MessageType.Unpair, EmptyMessage.Value).ContinueWith(_ => conn.Close());
     }
 
     void RemoveDevice(DeviceId id)
@@ -503,11 +520,20 @@ public sealed class Engine : IDisposable
                         continue;
                     }
                     Attach(conn);
+                    lock (gate)
+                        retryAt.Remove(id);
                     return;
                 }
                 catch (Exception ex) when (ex is SocketException or IOException or OperationCanceledException or System.Security.Authentication.AuthenticationException)
                 {
                 }
+            }
+            // An offline computer is retried less and less often; its LAN announcement reconnects it at once.
+            lock (gate)
+            {
+                var failures = retryAt.TryGetValue(id, out var r) ? r.Failures + 1 : 1;
+                var delay = TimeSpan.FromSeconds(Math.Min(60, 5 << Math.Min(failures, 4)));
+                retryAt[id] = (failures, DateTime.UtcNow + delay);
             }
         }
         finally
@@ -605,7 +631,7 @@ public sealed class Engine : IDisposable
         return true;
     }
 
-    async Task HandleMessage(Connection conn, MessageType type, byte[] payload)
+    async Task HandleMessage(Connection conn, MessageType type, ReadOnlyMemory<byte> payload)
     {
         try
         {
@@ -764,32 +790,39 @@ public sealed class Engine : IDisposable
 
     async Task Serve(Connection conn, RequestMessage req)
     {
-        byte[]? data = null;
+        bool found = false;
         FolderSync? folder;
         lock (gate)
             folder = folders.GetValueOrDefault(req.Folder);
-        if (folder != null && Shares(folder.Config, conn.PeerId) && req.Size is > 0 and <= FolderSync.ChunkSize)
-        {
-            try
-            {
-                var (block, fileSize) = folder.ServeBlock(req.Path, req.Hash, req.Offset, req.Size);
-                data = block;
-                if (block != null && req.Offset + block.Length >= fileSize)
-                    Activity.Add(new ActivityEntry(DateTime.Now, ActivityKind.Sent, "", folder.Id, req.Path, conn.PeerId, conn.PeerName, fileSize));
-            }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-            {
-                Log($"Can't read {req.Path}: {ex.Message}");
-            }
-        }
+        var buffer = ArrayPool<byte>.Shared.Rent(FolderSync.ChunkSize);
         try
         {
-            await conn.RespondAsync(req.Id, data);
-            if (data != null)
-                Interlocked.Add(ref bytesOut, data.Length);
+            if (folder != null && Shares(folder.Config, conn.PeerId) && req.Size is > 0 and <= FolderSync.ChunkSize)
+            {
+                try
+                {
+                    (found, var fileSize) = folder.ServeBlock(req.Path, req.Hash, req.Offset, buffer, req.Size);
+                    if (found && req.Offset + req.Size >= fileSize)
+                        Activity.Add(new ActivityEntry(DateTime.Now, ActivityKind.Sent, "", folder.Id, req.Path, conn.PeerId, conn.PeerName, fileSize));
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    Log($"Can't read {req.Path}: {ex.Message}");
+                }
+            }
+            await conn.RespondAsync(req.Id, buffer.AsMemory(0, found ? req.Size : 0), found);
+            if (found)
+            {
+                Interlocked.Add(ref bytesOut, req.Size);
+                CountWork();
+            }
         }
         catch
         {
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
         }
     }
 
@@ -819,7 +852,7 @@ public sealed class Engine : IDisposable
             foreach (var d in config.Devices)
             {
                 var id = new DeviceId(d.Id);
-                if (connections.ContainsKey(id) || connecting.Contains(id))
+                if (connections.ContainsKey(id) || connecting.Contains(id) || (retryAt.TryGetValue(id, out var retry) && now < retry.At))
                     continue;
                 var endPoints = new List<IPEndPoint>();
                 if (nearby.TryGetValue(id, out var n))
@@ -888,5 +921,6 @@ public sealed class Engine : IDisposable
             c.Close();
         foreach (var f in all)
             f.Dispose();
+        Activity.Dispose();
     }
 }

@@ -28,7 +28,6 @@ public sealed class Discovery : IDisposable
         this.log = log;
     }
 
-    sealed record Announcement(string App, int V, string Id, string Name, int Port);
 
     public void Start()
     {

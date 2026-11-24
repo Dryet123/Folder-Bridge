@@ -122,6 +122,19 @@ public sealed class SyncTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task RenamedFolderMovesOnTheOtherSide()
+    {
+        Directory.CreateDirectory(Path.Combine(dirA, "old", "inner"));
+        File.WriteAllText(Path.Combine(dirA, "old", "a.txt"), "a");
+        File.WriteAllText(Path.Combine(dirA, "old", "inner", "b.txt"), "b");
+        await WaitUntil(() => HasText(Path.Combine(dirB, "old", "inner", "b.txt"), "b"));
+
+        Directory.Move(Path.Combine(dirA, "old"), Path.Combine(dirA, "new"));
+        await WaitUntil(() => HasText(Path.Combine(dirB, "new", "inner", "b.txt"), "b") && HasText(Path.Combine(dirB, "new", "a.txt"), "a"));
+        await WaitUntil(() => !Directory.Exists(Path.Combine(dirB, "old")));
+    }
+
+    [Fact]
     public async Task DeletedFilesGoToTrash()
     {
         File.WriteAllText(Path.Combine(dirA, "old.txt"), "bye");

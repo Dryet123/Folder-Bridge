@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using FolderBridge.Core.Sync;
 
 namespace FolderBridge.Core;
@@ -15,18 +16,22 @@ public sealed record ActivityEntry(
     string? DeviceName = null,
     long Size = 0);
 
-public sealed class ActivityLog
+// Keeps the latest entries in memory and appends new ones to disk in batches.
+public sealed class ActivityLog : IDisposable
 {
     const int Capacity = 1000;
     readonly Queue<ActivityEntry> recent = new();
+    readonly List<ActivityEntry> unsaved = [];
     readonly object gate = new();
     readonly string? path;
-
-    public event Action<ActivityEntry>? Added;
+    readonly Timer flushTimer;
+    long total;
+    bool flushScheduled;
 
     public ActivityLog(string? path = null)
     {
         this.path = path;
+        flushTimer = new Timer(_ => Flush());
         if (path == null || !File.Exists(path))
             return;
         try
@@ -36,13 +41,14 @@ public sealed class ActivityLog
             {
                 try
                 {
-                    if (System.Text.Json.JsonSerializer.Deserialize<ActivityEntry>(line, Json.Options) is { } e)
+                    if (JsonSerializer.Deserialize<ActivityEntry>(line, Json.Options) is { } e)
                         recent.Enqueue(e);
                 }
-                catch (System.Text.Json.JsonException)
+                catch (JsonException)
                 {
                 }
             }
+            total = recent.Count;
             if (lines.Length > Capacity * 2)
                 File.WriteAllLines(path, lines.TakeLast(Capacity));
         }
@@ -56,21 +62,56 @@ public sealed class ActivityLog
         lock (gate)
         {
             recent.Enqueue(entry);
-            while (recent.Count > Capacity)
+            if (recent.Count > Capacity)
                 recent.Dequeue();
-            if (path != null)
+            total++;
+            if (path == null)
+                return;
+            unsaved.Add(entry);
+            if (!flushScheduled)
             {
-                try { File.AppendAllText(path, System.Text.Json.JsonSerializer.Serialize(entry, Json.Options) + Environment.NewLine); }
-                catch (IOException) { }
+                flushScheduled = true;
+                flushTimer.Change(2000, Timeout.Infinite);
             }
         }
-        Added?.Invoke(entry);
     }
 
     public IReadOnlyList<ActivityEntry> Recent()
     {
         lock (gate)
             return recent.ToList();
+    }
+
+    // Entries added since the cursor (at most the ones still in memory); moves the cursor to the end.
+    public List<ActivityEntry> Since(ref long cursor)
+    {
+        lock (gate)
+        {
+            var count = (int)Math.Min(total - cursor, recent.Count);
+            cursor = total;
+            return count <= 0 ? [] : recent.Skip(recent.Count - count).ToList();
+        }
+    }
+
+    void Flush()
+    {
+        List<string> lines;
+        lock (gate)
+        {
+            flushScheduled = false;
+            if (unsaved.Count == 0)
+                return;
+            lines = unsaved.Select(e => JsonSerializer.Serialize(e, Json.Options)).ToList();
+            unsaved.Clear();
+        }
+        try { File.AppendAllLines(path!, lines); }
+        catch (IOException) { }
+    }
+
+    public void Dispose()
+    {
+        flushTimer.Dispose();
+        Flush();
     }
 }
 

@@ -32,14 +32,25 @@ static class Base32
 
 static class Json
 {
-    public static readonly JsonSerializerOptions Options = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault,
-    };
+    // Source-generated metadata: no reflection or emitted code when (de)serializing.
+    public static readonly JsonSerializerOptions Options = new(JsonContext.Default.Options);
 
     public static readonly JsonSerializerOptions Pretty = new(Options) { WriteIndented = true };
 }
+
+[JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault)]
+[JsonSerializable(typeof(AppConfig))]
+[JsonSerializable(typeof(List<FileEntry>))]
+[JsonSerializable(typeof(ActivityEntry))]
+[JsonSerializable(typeof(Net.HelloMessage))]
+[JsonSerializable(typeof(Net.ClusterConfigMessage))]
+[JsonSerializable(typeof(Net.IndexMessage))]
+[JsonSerializable(typeof(Net.RequestMessage))]
+[JsonSerializable(typeof(Net.PairRequestMessage))]
+[JsonSerializable(typeof(Net.PairNonceMessage))]
+[JsonSerializable(typeof(Net.EmptyMessage))]
+[JsonSerializable(typeof(Net.Announcement))]
+partial class JsonContext : JsonSerializerContext;
 
 static class AtomicFile
 {

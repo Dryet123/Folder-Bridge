@@ -41,7 +41,7 @@ public sealed class PairingSession
     internal Task BeginAsync() =>
         conn.SendAsync(MessageType.PairRequest, new PairRequestMessage(engine.DeviceName, engine.ListenPort, SHA256.HashData(myNonce)));
 
-    internal async Task HandleAsync(MessageType type, byte[] payload)
+    internal async Task HandleAsync(MessageType type, ReadOnlyMemory<byte> payload)
     {
         switch (type)
         {
@@ -98,7 +98,7 @@ public sealed class PairingSession
                 return;
             localOk = true;
         }
-        await conn.TrySendAsync(MessageType.PairConfirm, new { });
+        await conn.TrySendAsync(MessageType.PairConfirm, EmptyMessage.Value);
         TryComplete();
         Changed?.Invoke(this);
     }
@@ -107,7 +107,7 @@ public sealed class PairingSession
     {
         if (State != PairingState.Waiting)
             return;
-        _ = conn.TrySendAsync(MessageType.PairReject, new { }).ContinueWith(_ => conn.Close());
+        _ = conn.TrySendAsync(MessageType.PairReject, EmptyMessage.Value).ContinueWith(_ => conn.Close());
         Finish(PairingState.Rejected);
     }
 
