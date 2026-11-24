@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/FolderBridge.Core/FolderBridge.Core.csproj" />
+    <Project Path="src/FolderBridge/FolderBridge.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/FolderBridge.Tests/FolderBridge.Tests.csproj" />
+  </Folder>
+</Solution>

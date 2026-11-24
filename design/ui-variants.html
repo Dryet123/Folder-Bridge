@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tandem UI variants</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,Helvetica,sans-serif;background:#8f8f8f;color:#111;padding:20px}
+.switch{display:flex;margin-bottom:18px;border:1px solid #111;width:max-content;background:#fff}
+.switch button{font:13px Arial;padding:8px 16px;border:0;border-right:1px solid #111;background:#fff;cursor:pointer}
+.switch button:last-child{border-right:0}
+.switch button.on{background:#111;color:#fff}
+.variant{display:none}
+.variant.on{display:block}
+.stage{display:flex;flex-direction:column;gap:22px;align-items:flex-start}
+.win{width:900px;height:580px;position:relative;overflow:hidden;flex:none}
+.note{font-size:12px;color:#111;background:#fff;padding:8px 12px;border:1px solid #111;max-width:900px;line-height:1.5}
+svg{display:block;flex:none}
+button{font-family:inherit}
+
+/* A. Braun */
+.braun{background:#E8E6E1;color:#1A1A1A;border:1px solid #B5B1A8;display:flex;flex-direction:column}
+.braun .tb{height:42px;display:flex;align-items:center;padding:0 18px;border-bottom:1px solid #CFCBC3;flex:none}
+.braun .tb b{font-size:13px;letter-spacing:.4px}
+.braun .tb .sub{font-size:11px;color:#7A766E;margin-left:14px}
+.braun .wc{margin-left:auto;display:flex;gap:16px}
+.braun .main{flex:1;display:grid;grid-template-columns:272px 1fr;min-height:0}
+.braun .side{border-right:1px solid #CFCBC3;padding:20px 0 16px;display:flex;flex-direction:column}
+.braun .lab{font-size:10px;letter-spacing:1.6px;color:#8A867E;padding:0 20px 8px;text-transform:uppercase}
+.braun .lab0{font-size:10px;letter-spacing:1.6px;color:#8A867E;text-transform:uppercase}
+.braun .f{display:flex;gap:12px;padding:10px 20px;align-items:center}
+.braun .f.sel{background:#F5F4F0}
+.braun .dot{width:10px;height:10px;border-radius:50%;flex:none}
+.braun .dot.ring{border:1.5px solid #8A867E}
+.braun .n{font-size:14px}
+.braun .p{font-size:11px;color:#7A766E;margin-top:3px}
+.braun .f .s{margin-left:auto;font-size:12px;color:#7A766E}
+.braun .btn{font-size:12px;padding:8px 14px;border:1px solid #1A1A1A;background:transparent;color:#1A1A1A;display:inline-flex;gap:8px;align-items:center;border-radius:2px}
+.braun .btn.pri{background:#E0601E;border-color:#E0601E;color:#fff}
+.braun .btn.sm{padding:5px 10px;font-size:11px}
+.braun .detail{padding:26px 32px;min-width:0}
+.braun .dh{display:flex;align-items:flex-start}
+.braun .title{font-size:30px;letter-spacing:-.5px}
+.braun .acts{margin-left:auto;display:flex;gap:8px}
+.braun .stats{display:grid;grid-template-columns:repeat(4,1fr);margin-top:26px;border-top:1px solid #CFCBC3;border-bottom:1px solid #CFCBC3}
+.braun .stats>div{padding:12px 0 12px 16px;border-left:1px solid #CFCBC3}
+.braun .stats>div:first-child{border-left:0;padding-left:0}
+.braun .v{font-size:20px;margin-top:6px}
+.braun .prog{margin-top:22px}
+.braun .pl{display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px}
+.braun .track{height:4px;background:#D2CEC6}
+.braun .track i{display:block;height:100%;background:#E0601E}
+.braun .lr{display:grid;grid-template-columns:48px 22px 120px 1fr 80px 70px;align-items:center;height:33px;border-top:1px solid #D9D6CF;font-size:12px}
+.braun .lr .t,.braun .lr .fo{color:#7A766E}
+.braun .lr .sz{text-align:right;color:#7A766E}
+.braun .sb{height:30px;flex:none;border-top:1px solid #CFCBC3;display:flex;gap:28px;align-items:center;padding:0 20px;font-size:11px;color:#7A766E}
+.braun .sb span:first-child{margin-right:auto}
+.braun-dlg{width:400px;background:#F2F1ED;border:1px solid #B5B1A8;padding:24px 26px;color:#1A1A1A}
+.braun-dlg .code{display:flex;gap:8px;margin:20px 0 24px}
+.braun-dlg .code span{width:44px;height:56px;border:1px solid #CFCBC3;background:#fff;display:flex;align-items:center;justify-content:center;font-size:28px}
+.braun-dlg .code span.gap{width:10px;border:0;background:none}
+
+/* B. Windows 2000 */
+.w2k{background:#D4D0C8;color:#000;font-size:12px;display:flex;flex-direction:column;padding:3px;border:1px solid;border-color:#D4D0C8 #404040 #404040 #D4D0C8;box-shadow:inset 1px 1px #fff,inset -1px -1px #808080}
+.w2k .r{border:1px solid;border-color:#fff #404040 #404040 #fff;box-shadow:inset -1px -1px #808080}
+.w2k .k{border:1px solid;border-color:#808080 #fff #fff #808080;box-shadow:inset 1px 1px #404040}
+.w2k .tt{height:20px;background:#0A246A;color:#fff;font-weight:bold;display:flex;align-items:center;gap:5px;padding:0 3px 0 4px;flex:none}
+.w2k .tbtns{margin-left:auto;display:flex}
+.w2k .tbn{width:16px;height:14px;background:#D4D0C8;display:flex;align-items:center;justify-content:center}
+.w2k .menu{display:flex;height:21px;align-items:center;flex:none}
+.w2k .menu span{padding:0 7px}
+.w2k .tool{display:flex;align-items:center;gap:2px;height:32px;padding:0 3px;border-top:1px solid #808080;border-bottom:1px solid #fff;box-shadow:0 1px #808080,inset 0 1px #fff;flex:none}
+.w2k .tbb{display:flex;align-items:center;gap:5px;padding:3px 7px;height:24px}
+.w2k .tbb.hov{border:1px solid;border-color:#fff #808080 #808080 #fff}
+.w2k .sep{width:2px;height:20px;border-left:1px solid #808080;border-right:1px solid #fff;margin:0 4px}
+.w2k .tabs{display:flex;padding:6px 6px 0;flex:none}
+.w2k .tab{padding:3px 12px 4px;border:1px solid;border-color:#fff #404040 transparent #fff;border-bottom:0;margin-right:-2px;position:relative;top:2px;background:#D4D0C8}
+.w2k .tab.on{top:0;padding-bottom:6px;z-index:1;margin:0 -2px 0 -2px}
+.w2k .tabbody{flex:1;margin:0 6px 6px;border:1px solid;border-color:#fff #404040 #404040 #fff;box-shadow:inset -1px -1px #808080;padding:10px;display:flex;flex-direction:column;gap:10px;min-height:0}
+.w2k .lv{background:#fff;flex:1;overflow:hidden}
+.w2k .lvh,.w2k .lvr{display:grid;grid-template-columns:120px 190px 100px 150px 110px 1fr}
+.w2k .lvh>span{background:#D4D0C8;height:19px;display:flex;align-items:center;padding:0 6px;border:1px solid;border-color:#fff #404040 #404040 #fff;box-shadow:inset -1px -1px #808080}
+.w2k .lvr{height:19px;align-items:center}
+.w2k .lvr>span{padding:0 6px;display:flex;align-items:center;gap:5px;white-space:nowrap;overflow:hidden}
+.w2k .lvr.sel>span{background:#0A246A;color:#fff}
+.w2k .cp{height:13px;width:96px;background:#fff;padding:1px}
+.w2k .cp i{display:block;height:100%;background:repeating-linear-gradient(90deg,#0A246A 0 7px,transparent 7px 9px)}
+.w2k .lvr.sel .cp{outline:1px solid #fff}
+.w2k fieldset{border:1px solid #808080;box-shadow:1px 1px #fff,inset 1px 1px #fff;padding:6px 12px 12px;flex:none}
+.w2k legend{padding:0 3px}
+.w2k .kv{display:grid;grid-template-columns:110px 1fr 110px 1fr;row-gap:6px;margin-top:4px}
+.w2k .bigp{height:18px;background:#fff;padding:2px;margin-top:10px}
+.w2k .bigp i{display:block;height:100%;width:35%;background:repeating-linear-gradient(90deg,#0A246A 0 9px,transparent 9px 11px)}
+.w2k .pb{min-width:75px;height:23px;background:#D4D0C8;display:inline-flex;align-items:center;justify-content:center;padding:0 10px}
+.w2k .sbar{display:flex;gap:2px;height:20px;margin-top:1px;flex:none}
+.w2k .sbar span{display:flex;align-items:center;padding:0 6px;border:1px solid;border-color:#808080 #fff #fff #808080}
+.w2k-dlg{width:380px;height:auto}
+
+/* C. Swiss */
+.swiss{background:#fff;color:#000;padding:26px 36px 22px;display:flex;flex-direction:column}
+.swiss .wc{position:absolute;right:14px;top:12px;display:flex;gap:12px}
+.swiss .head{display:grid;grid-template-columns:1fr 190px 190px;align-items:end;padding-bottom:14px}
+.swiss h1{font-size:60px;line-height:.86;letter-spacing:-2.5px;font-weight:bold}
+.swiss .meta{font-size:12px;line-height:1.45}
+.swiss .meta b{display:block;font-size:13px}
+.swiss .rule{height:6px;background:#000;flex:none}
+.swiss .row{display:grid;grid-template-columns:52px 1fr 190px 110px;padding:13px 0 12px;border-bottom:1px solid #000;align-items:baseline;position:relative}
+.swiss .row:last-of-type{border-bottom:0}
+.swiss .num{font-size:13px;font-weight:bold}
+.swiss .nm{font-size:25px;font-weight:bold;letter-spacing:-.6px}
+.swiss .pt{font-size:12px;margin-top:3px;font-weight:normal;letter-spacing:0}
+.swiss .st{font-size:13px}
+.swiss .big{font-size:34px;font-weight:bold;text-align:right;letter-spacing:-1.5px}
+.swiss .red{color:#E30613}
+.swiss .bar{position:absolute;left:52px;bottom:-1px;height:4px;background:#E30613}
+.swiss .bottom{display:grid;grid-template-columns:52px 1fr 300px;padding-top:16px;flex:1;min-height:0}
+.swiss .h{font-size:13px;font-weight:bold;margin-bottom:8px}
+.swiss .li{display:grid;grid-template-columns:52px 110px 1fr 70px;font-size:12px;line-height:22px}
+.swiss .li .g{color:#777}
+.swiss .act{border-top:1px solid #000;display:flex;align-items:center;justify-content:space-between;height:40px;font-size:15px;font-weight:bold}
+.swiss .act.pri{background:#E30613;color:#fff;border-top:0;padding:0 12px;margin-top:6px}
+.swiss-dlg{width:420px;background:#fff;border:2px solid #000;padding:24px 26px 22px}
+.swiss-dlg .c{font-size:64px;font-weight:bold;letter-spacing:-2px;color:#E30613;margin:16px 0 10px;line-height:1}
+
+/* D. Rack */
+.rack{background:#1D1D1D;color:#CFCFCF;border:1px solid #000;padding:20px 30px;display:flex;flex-direction:column;gap:14px}
+.rack .screw{position:absolute;width:13px;height:13px;border-radius:50%;background:#383838;border:1px solid #0C0C0C}
+.rack .screw:after{content:'';position:absolute;left:2px;right:2px;top:5px;height:1.5px;background:#121212;transform:rotate(35deg)}
+.rack .top{display:flex;align-items:flex-end;padding:0 4px}
+.rack .brand{font-size:20px;font-weight:bold;letter-spacing:6px;color:#E6E6E6}
+.rack .model{font-size:9px;letter-spacing:2px;color:#7D7D7D;margin:0 0 4px 16px}
+.rack .leds{margin-left:auto;display:flex;gap:18px}
+.rack .ledw{display:flex;flex-direction:column;align-items:center;gap:5px;font-size:8px;letter-spacing:1.5px;color:#8A8A8A}
+.rack .led{width:8px;height:8px;border-radius:50%;background:#2C2C2C;border:1px solid #0A0A0A}
+.rack .lab{font-size:9px;letter-spacing:2px;color:#7D7D7D;margin-bottom:5px}
+.rack .lcd{background:#191100;border:2px solid #0B0B0B;box-shadow:inset 0 0 0 1px #2E2200;color:#FFB000;font-family:Consolas,'Courier New',monospace;font-size:13px;padding:8px 8px}
+.rack .lr{display:grid;grid-template-columns:100px 1fr 130px 150px;height:23px;align-items:center;padding:0 8px;white-space:nowrap}
+.rack .lr.hd{color:#6E4C00;font-size:11px;height:18px}
+.rack .lr.sel{background:#FFB000;color:#191100}
+.rack .seg{display:flex;gap:2px}
+.rack .seg i{width:6px;height:11px;background:#3A2A00}
+.rack .seg i.on{background:#FFB000}
+.rack .lr.sel .seg i{background:#B07A00}
+.rack .lr.sel .seg i.on{background:#191100}
+.rack .mid{display:grid;grid-template-columns:1fr 330px;gap:22px}
+.rack .meter{display:flex;align-items:center;gap:10px;font-size:9px;letter-spacing:2px;color:#8A8A8A;height:22px}
+.rack .meter .m{display:flex;gap:2px}
+.rack .meter .m i{width:8px;height:10px;background:#2B2B2B}
+.rack .log{font-size:12px;color:#C98B00;line-height:19px}
+.rack .log .l{display:grid;grid-template-columns:60px 130px 1fr 90px 80px;padding:0 8px}
+.rack .keys{display:flex;gap:10px;align-items:flex-end}
+.rack .keyw{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:8px;letter-spacing:1.5px;color:#8A8A8A}
+.rack .key{width:78px;height:34px;background:#2F2F2F;border:1px solid #0C0C0C;box-shadow:inset 0 1px 0 #474747,0 2px 0 #0A0A0A;display:flex;align-items:center;justify-content:center;gap:7px;color:#E2E2E2;font-size:10px;letter-spacing:1.5px}
+.rack .key .kl{width:6px;height:6px;border-radius:50%;background:#3A2A00}
+.rack .engr{margin-left:auto;font-size:9px;letter-spacing:2px;color:#6A6A6A;text-align:right;line-height:1.6}
+.rack-dlg{width:420px;height:auto;padding:22px 26px}
+
+/* E. Windows XP, layout A */
+.xp{--f:Tahoma,Arial,sans-serif;font-family:var(--f);font-size:11px;color:#000;background:#ECE9D8;border-radius:8px 8px 0 0;padding:0 3px 3px;display:flex;flex-direction:column;
+  box-shadow:inset -1px -1px #00138C,inset 1px 1px #0831D9,inset -2px -2px #001EA0,inset 2px 2px #166AEE,inset -3px -3px #003BDA,inset 3px 3px #0855DD}
+.xp.arial{--f:Arial,sans-serif}
+.xp .tt{height:30px;margin:0 -3px;border-radius:8px 8px 0 0;display:flex;align-items:center;gap:6px;padding:0 6px 0 8px;flex:none;
+  background:linear-gradient(180deg,#0997FF,#0053EE 8%,#0050EE 40%,#06F 88%,#06F 93%,#005BFF 95%,#003DD7 96%,#003DD7)}
+.xp .tt .tx{color:#fff;font:bold 13px 'Trebuchet MS',Arial,sans-serif;text-shadow:1px 1px #0F1089}
+.xp.arial .tt .tx{font-family:Arial}
+.xp .tbs{margin-left:auto;display:flex;gap:2px}
+.xp .tbtn{width:21px;height:21px;border:1px solid #fff;border-radius:3px;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 90% 90%,#0054E9 0%,#2263D5 55%,#4479E4 70%,#A3BBEC 90%,#fff 100%)}
+.xp .tbtn.x{background:radial-gradient(circle at 90% 90%,#CC4600 0%,#DC6527 55%,#CD7546 70%,#FFCCB2 90%,#fff 100%)}
+.xp .main{flex:1;display:grid;grid-template-columns:236px 1fr;min-height:0}
+.xp .tp{background:linear-gradient(180deg,#7BA2E7,#6375D6);padding:12px;display:flex;flex-direction:column;gap:14px;overflow:hidden}
+.xp .gh{height:25px;border-radius:5px 5px 0 0;background:linear-gradient(90deg,#fff 0%,#C6D3F7 100%);display:flex;align-items:center;padding:0 4px 0 11px;font-weight:bold;color:#215DC6}
+.xp .sp .gh{background:linear-gradient(90deg,#0055E5,#2663E0);color:#fff}
+.xp .chev{margin-left:auto;width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,#fff 30%,#C2CFF3);border:1px solid #B0C1EF;display:flex;align-items:center;justify-content:center}
+.xp .gb{background:#D6DFF7;border:1px solid #fff;border-top:0;padding:9px 10px;display:flex;flex-direction:column;gap:5px}
+.xp .sp .gb{background:#EFF3FF}
+.xp .it{display:flex;align-items:center;gap:6px;color:#215DC6;padding:2px 4px;margin:0 -4px;border-radius:2px}
+.xp .it.sel{background:#316AC5;color:#fff}
+.xp .it .r{margin-left:auto}
+.xp .it .sub{display:block;color:#5A6E9A;font-size:10px;margin-top:1px}
+.xp .det{background:#fff;padding:16px 20px 14px;display:flex;flex-direction:column;gap:14px;min-width:0;border-left:1px solid #9DB3E4}
+.xp .dh{display:flex;align-items:center;gap:12px}
+.xp .ttl{font:bold 20px 'Trebuchet MS',Arial,sans-serif;color:#0B2A7A}
+.xp.arial .ttl{font-family:Arial}
+.xp .b{font:11px var(--f);min-width:75px;height:23px;padding:0 10px;border:1px solid #003C74;border-radius:3px;display:inline-flex;align-items:center;justify-content:center;gap:5px;color:#000;
+  background:linear-gradient(180deg,#fff,#ECEBE6 86%,#D6D0C5)}
+.xp .b.def{box-shadow:inset -1px 1px #CEE7FF,inset 1px 2px #98B8EA,inset -2px 2px #BCD4F6,inset 1px -1px #89ADE4,inset 2px -2px #89ADE4}
+.xp .b.hov{box-shadow:inset -1px 1px #FFF0CF,inset 1px 2px #FDD889,inset -2px 2px #FBC761,inset 2px -2px #E5A01A}
+.xp fieldset{border:1px solid #D0D0BF;border-radius:4px;padding:6px 12px 12px}
+.xp legend{color:#0046D5;padding:0 3px}
+.xp .kv{display:grid;grid-template-columns:80px 1fr 80px 1fr;row-gap:5px;margin:4px 0 10px}
+.xp .kv .k{color:#555}
+.xp .pg{height:17px;border:1px solid #686868;border-radius:3px;padding:2px 3px;background:#fff;box-shadow:inset 0 0 0 1px #D8D8D8}
+.xp .pg i{display:block;height:100%;background:repeating-linear-gradient(to right,#fff 0 2px,transparent 2px 10px),linear-gradient(to bottom,#ACEDAD 0%,#7BE47D 14%,#4CDA50 28%,#2ED330 42%,#42D845 57%,#76E275 71%,#8FE791 85%,#fff 100%)}
+.xp .lv{border:1px solid #7F9DB9;flex:1;min-height:0;overflow:hidden}
+.xp .lh,.xp .lr{display:grid;grid-template-columns:52px 104px 1fr 90px 72px}
+.xp .lh>span{height:21px;display:flex;align-items:center;padding:0 6px;border-right:1px solid #C7C5B2;background:linear-gradient(180deg,#fff 0%,#F3F2EB 75%,#E3E1D6 100%);border-bottom:2px solid #D5D2CA}
+.xp .lr>span{height:20px;display:flex;align-items:center;gap:5px;padding:0 6px;white-space:nowrap;overflow:hidden}
+.xp .lr .g{color:#666}
+.xp .sb{height:22px;display:flex;align-items:center;flex:none;border-top:1px solid #fff;box-shadow:0 -1px #D6D2C2}
+.xp .sb span{padding:0 10px;border-left:1px solid #C2BFA5;height:16px;display:flex;align-items:center}
+.xp .sb span:first-child{border-left:0;margin-right:auto}
+.xp-dlg{width:390px;height:auto}
+.xp-dlg .code{border:1px solid #7F9DB9;background:#fff;font:bold 26px var(--f);letter-spacing:6px;text-align:center;padding:6px 0;margin-top:10px}
+.fontsw{display:flex;gap:6px;align-items:center;font-size:12px}
+.fontsw button{font:12px Arial;padding:4px 10px;border:1px solid #111;background:#fff;cursor:pointer}
+.fontsw button.on{background:#111;color:#fff}
+</style>
+</head>
+<body>
+<div class="switch" id="sw">
+  <button data-v="a" class="on">A. Braun / Dieter Rams</button>
+  <button data-v="b">B. Classic Windows 2000</button>
+  <button data-v="c">C. Swiss / International</button>
+  <button data-v="d">D. Rack / hardware panel</button>
+  <button data-v="e">E. Windows XP, layout A</button>
+</div>
+<div id="out"></div>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="xFoldBack" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F6D37C"/><stop offset="1" stop-color="#D49B2E"/></linearGradient>
+    <linearGradient id="xFoldFront" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF1BE"/><stop offset=".45" stop-color="#F9D777"/><stop offset="1" stop-color="#E7AF3F"/></linearGradient>
+    <radialGradient id="xShadow"><stop offset="0" stop-color="#000" stop-opacity=".32"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+    <linearGradient id="xGloss" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".95"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+    <radialGradient id="xOrbG" cx=".5" cy=".65" r=".62"><stop offset="0" stop-color="#9BEA66"/><stop offset=".7" stop-color="#3FA827"/><stop offset="1" stop-color="#23781A"/></radialGradient>
+    <radialGradient id="xOrbB" cx=".5" cy=".65" r=".62"><stop offset="0" stop-color="#86BCFF"/><stop offset=".7" stop-color="#2F6FE0"/><stop offset="1" stop-color="#1745B0"/></radialGradient>
+    <linearGradient id="xTri" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF2A8"/><stop offset=".5" stop-color="#FFD22E"/><stop offset="1" stop-color="#E9A500"/></linearGradient>
+    <linearGradient id="xScr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9AD6FF"/><stop offset=".55" stop-color="#3478DC"/><stop offset="1" stop-color="#173F9E"/></linearGradient>
+    <linearGradient id="xBezel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#F7F7F3"/><stop offset="1" stop-color="#BFC4CC"/></linearGradient>
+    <linearGradient id="xArrG" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#A6EC86"/><stop offset=".5" stop-color="#4DBB2C"/><stop offset="1" stop-color="#2C8A1A"/></linearGradient>
+    <linearGradient id="xArrB" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#A8CCFF"/><stop offset=".5" stop-color="#3C7BE6"/><stop offset="1" stop-color="#1C4DB8"/></linearGradient>
+    <linearGradient id="xMetal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F4F6FA"/><stop offset="1" stop-color="#8E99AA"/></linearGradient>
+    <linearGradient id="xBin" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#F3F7FC"/><stop offset=".6" stop-color="#C3D2E6"/><stop offset="1" stop-color="#8FA6C6"/></linearGradient>
+  </defs>
+</svg>
+
+<script>
+const D = {
+  me: { name: 'DESKTOP-7Q2M', port: 22000 },
+  peer: { name: 'LAPTOP-K3', ip: '192.168.1.14' },
+  nearby: { name: 'DESKTOP-OFFICE', ip: '192.168.1.20' },
+  folders: [
+    { name: 'Projects', path: 'D:\\Work\\Projects', state: 'ok', status: 'In sync', files: '1 284', size: '3.2 GB', last: '2 min ago', pct: 100 },
+    { name: 'Photos', path: 'E:\\Photos\\2026', state: 'sync', status: 'Syncing 12 of 40', files: '40', size: '1.1 GB', last: 'now', pct: 35 },
+    { name: 'Notes', path: 'D:\\Notes', state: 'conf', status: '1 conflict', files: '96', size: '14 MB', last: '5 min ago', pct: 100 }
+  ],
+  log: [
+    { t: '14:32', k: 'down', a: 'Received', f: 'IMG_0231.jpg', fo: 'Photos', s: '4.1 MB' },
+    { t: '14:32', k: 'down', a: 'Received', f: 'IMG_0230.jpg', fo: 'Photos', s: '3.8 MB' },
+    { t: '14:31', k: 'warn', a: 'Conflict', f: 'todo.txt', fo: 'Notes', s: 'kept both' },
+    { t: '14:28', k: 'up', a: 'Sent', f: 'report-final.docx', fo: 'Projects', s: '220 KB' },
+    { t: '14:20', k: 'trash', a: 'To trash', f: 'old-logo.psd', fo: 'Projects', s: '38 MB' }
+  ]
+};
+
+const P = {
+  folder: '<path d="M1.5 3.5h4.5l1.5 1.5h7v8h-13z"/>',
+  laptop: '<rect x="3" y="3.5" width="10" height="7"/><path d="M1 12.5h14"/>',
+  plus: '<path d="M8 3v10M3 8h10"/>',
+  minus: '<path d="M3 8h10"/>',
+  sync: '<path d="M12.8 6.2A5 5 0 0 0 3.5 5.2M3.2 9.8a5 5 0 0 0 9.3 1"/><path d="M3 2.2v3.3h3.3M13 13.8v-3.3H9.7"/>',
+  pause: '<path d="M5.5 3.5v9M10.5 3.5v9"/>',
+  link: '<path d="M6.5 9.5l3-3"/><path d="M7.2 4.8l1.3-1.3a2.5 2.5 0 0 1 3.5 3.5l-1.3 1.3M8.8 11.2l-1.3 1.3a2.5 2.5 0 0 1-3.5-3.5l1.3-1.3"/>',
+  down: '<path d="M8 2.5v10M4 9l4 4 4-4"/>',
+  up: '<path d="M8 13.5v-10M4 7l4-4 4 4"/>',
+  right: '<path d="M2.5 8h10M9 4l4 4-4 4"/>',
+  trash: '<path d="M2.5 4.5h11M6 4.5v-2h4v2M4 4.5l.7 9h6.6l.7-9"/>',
+  warn: '<path d="M8 2l6.5 11.5h-13z"/><path d="M8 6.5v3.2M8 11.2v1.2"/>',
+  check: '<path d="M3 8.5l3.2 3L13 4.5"/>',
+  wmin: '<path d="M4 11.5h8"/>',
+  wmax: '<rect x="4" y="4" width="8" height="8"/>',
+  wclose: '<path d="M4 4l8 8M12 4l-8 8"/>'
+};
+const ic = (n, s = 16, c = 'currentColor', w = 1.3, fill = 'none') =>
+  `<svg width="${s}" height="${s}" viewBox="0 0 16 16" fill="${fill}" stroke="${c}" stroke-width="${w}" stroke-linecap="square">${P[n]}</svg>`;
+const sel = D.folders[1];
+
+function braun() {
+  const col = { ok: '#4E8A3E', sync: '#E0601E', conf: '#C8322B' };
+  const folders = D.folders.map((f, i) => `
+    <div class="f ${i === 1 ? 'sel' : ''}"><span class="dot" style="background:${col[f.state]}"></span>
+      <div><div class="n">${f.name}</div><div class="p">${f.path}</div></div>
+      <span class="s">${f.state === 'sync' ? f.pct + '%' : f.state === 'conf' ? '1 conflict' : ''}</span></div>`).join('');
+  const log = D.log.map(l => `
+    <div class="lr"><span class="t">${l.t}</span>${ic(l.k, 14, l.k === 'warn' ? '#C8322B' : '#1A1A1A')}
+      <span>${l.a}</span><span>${l.f}</span><span class="fo">${l.fo}</span><span class="sz">${l.s}</span></div>`).join('');
+  return `
+  <div class="win braun">
+    <div class="tb"><b>Tandem</b><span class="sub">${D.me.name}</span>
+      <div class="wc">${ic('wmin', 14, '#555')}${ic('wmax', 14, '#555')}${ic('wclose', 14, '#555')}</div></div>
+    <div class="main">
+      <div class="side">
+        <div class="lab">Folders</div>${folders}
+        <div style="padding:12px 20px 0"><button class="btn">${ic('plus', 12)}Add folder</button></div>
+        <div class="lab" style="margin-top:auto">Paired device</div>
+        <div class="f"><span class="dot" style="background:#4E8A3E"></span>
+          <div><div class="n">${D.peer.name}</div><div class="p">Online, ${D.peer.ip}</div></div></div>
+        <div class="lab" style="margin-top:10px">Nearby</div>
+        <div class="f"><span class="dot ring"></span>
+          <div><div class="n">${D.nearby.name}</div><div class="p">${D.nearby.ip}</div></div>
+          <button class="btn sm pri" style="margin-left:auto">Pair</button></div>
+      </div>
+      <div class="detail">
+        <div class="dh"><div><div class="title">${sel.name}</div><div class="p" style="font-size:12px">${sel.path}</div></div>
+          <div class="acts"><button class="btn">${ic('pause', 12)}Pause</button><button class="btn">Open folder</button></div></div>
+        <div class="stats">
+          <div><div class="lab0">Files</div><div class="v">40</div></div>
+          <div><div class="lab0">Size</div><div class="v">1.1 GB</div></div>
+          <div><div class="lab0">Remaining</div><div class="v">412 MB</div></div>
+          <div><div class="lab0">Speed</div><div class="v">8.4 MB/s</div></div>
+        </div>
+        <div class="prog"><div class="pl"><span>Syncing 12 of 40 files with ${D.peer.name}</span><span>35%</span></div>
+          <div class="track"><i style="width:35%"></i></div></div>
+        <div class="lab0" style="margin:28px 0 8px">Activity</div>
+        <div>${log}</div>
+      </div>
+    </div>
+    <div class="sb"><span>Listening on port ${D.me.port}</span><span>Up 0 KB/s</span><span>Down 8.4 MB/s</span></div>
+  </div>
+  <div class="braun-dlg">
+    <div class="lab0">Pair device</div>
+    <div style="font-size:20px;margin-top:10px">${D.nearby.name}</div>
+    <div style="font-size:12px;color:#7A766E;margin-top:6px;line-height:1.5">Check that ${D.nearby.name} shows the same code, then press Pair on both devices.</div>
+    <div class="code"><span>4</span><span>8</span><span>2</span><span class="gap"></span><span>9</span><span>1</span><span>3</span></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn">Cancel</button><button class="btn pri">Pair</button></div>
+  </div>
+  <div class="note">Warm light grey #E8E6E1, black text, one orange accent #E0601E for actions and progress. Thin hairlines instead of boxes, small uppercase section labels, round status lamps like on Braun radios.</div>`;
+}
+
+function w2k() {
+  const st = { ok: ['check', '#1C7C1C'], sync: ['sync', '#0A246A'], conf: ['warn', '#A07000'] };
+  const rows = D.folders.map((f, i) => {
+    const on = i === 1;
+    const [n, c] = st[f.state];
+    return `<div class="lvr ${on ? 'sel' : ''}">
+      <span>${ic('folder', 16, '#7A5C10', 1, '#F4D46A')}${f.name}</span><span>${f.path}</span><span>${D.peer.name}</span>
+      <span>${ic(n, 14, on ? '#fff' : c, 1.5)}${f.status}</span>
+      <span><span class="cp k"><i style="width:${f.pct}%"></i></span></span><span>${f.last}</span></div>`;
+  }).join('');
+  const tool = (n, t, extra = '') => `<span class="tbb ${extra}">${n}${t}</span>`;
+  return `
+  <div class="win w2k">
+    <div class="tt">${ic('link', 14, '#fff', 1.5)}<span>Tandem - ${D.me.name}</span>
+      <div class="tbtns"><span class="tbn r">${ic('wmin', 10, '#000', 1.8)}</span><span class="tbn r">${ic('wmax', 10, '#000', 1.6)}</span>
+      <span class="tbn r" style="margin-left:2px">${ic('wclose', 10, '#000', 1.8)}</span></div></div>
+    <div class="menu"><span><u>F</u>ile</span><span>F<u>o</u>lder</span><span><u>D</u>evice</span><span><u>V</u>iew</span><span><u>H</u>elp</span></div>
+    <div class="tool">
+      ${tool(ic('folder', 16, '#7A5C10', 1, '#F4D46A'), 'Add folder', 'hov')}
+      ${tool(ic('minus', 16, '#8B0000', 1.8), 'Remove')}
+      <span class="sep"></span>
+      ${tool(ic('sync', 16, '#0A246A', 1.5), 'Sync now')}
+      ${tool(ic('pause', 16, '#000', 1.8), 'Pause')}
+      <span class="sep"></span>
+      ${tool(ic('link', 16, '#0A246A', 1.5), 'Pair device...')}
+    </div>
+    <div class="tabs"><span class="tab on">Folders</span><span class="tab">Devices</span><span class="tab">Activity</span></div>
+    <div class="tabbody">
+      <div class="lv k">
+        <div class="lvh"><span>Name</span><span>Local path</span><span>Device</span><span>Status</span><span>Progress</span><span>Last sync</span></div>
+        ${rows}
+      </div>
+      <fieldset><legend>Photos</legend>
+        <div class="kv"><span>Status:</span><span>Syncing 12 of 40 files</span><span>Remaining:</span><span>412 MB</span>
+          <span>Device:</span><span>${D.peer.name} (${D.peer.ip})</span><span>Speed:</span><span>8.4 MB/s</span>
+          <span>Local path:</span><span>${sel.path}</span><span>Time left:</span><span>about 50 seconds</span></div>
+        <div class="bigp k"><i></i></div>
+      </fieldset>
+    </div>
+    <div class="sbar"><span style="flex:1">1 device connected</span><span style="width:120px">Down: 8.4 MB/s</span><span style="width:110px">Up: 0 KB/s</span><span style="width:90px">Port ${D.me.port}</span></div>
+  </div>
+  <div class="win w2k w2k-dlg">
+    <div class="tt"><span>Pair device</span><div class="tbtns"><span class="tbn r">${ic('wclose', 10, '#000', 1.8)}</span></div></div>
+    <div style="padding:14px 14px 12px;display:flex;gap:14px">
+      ${ic('link', 32, '#0A246A', 1.2)}
+      <div style="flex:1">
+        <div>Pairing with <b>${D.nearby.name}</b> (${D.nearby.ip}).</div>
+        <div style="margin-top:8px">Make sure the other computer shows the same code:</div>
+        <div class="k" style="background:#fff;font-size:26px;font-weight:bold;letter-spacing:4px;padding:6px 10px;margin-top:10px;text-align:center">482 913</div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:6px;padding:0 12px 12px">
+      <span class="pb r" style="outline:1px solid #000">Pair</span><span class="pb r">Cancel</span></div>
+  </div>
+  <div class="note">Grey #D4D0C8 with 3D bevels, navy title bar, menu, toolbar, tabs and a ListView with columns, segmented progress bars and a status bar. Familiar and dense, everything visible at once.</div>`;
+}
+
+function swiss() {
+  const big = f => f.state === 'sync' ? `<span class="red">${f.pct}%</span>` : f.state === 'conf' ? '<span class="red">1</span>' : f.files;
+  const rows = D.folders.map((f, i) => `
+    <div class="row"><span class="num">0${i + 1}</span>
+      <div class="nm">${f.name}<div class="pt">${f.path}</div></div>
+      <span class="st ${f.state !== 'ok' ? 'red' : ''}">${f.status}<br><span style="color:#000">${f.state === 'sync' ? '412 MB left, 8.4 MB/s' : f.size + ', ' + f.last}</span></span>
+      <span class="big">${big(f)}</span>
+      ${f.state === 'sync' ? `<span class="bar" style="width:${(900 - 72 - 52) * f.pct / 100}px"></span>` : ''}</div>`).join('');
+  const log = D.log.map(l => `<div class="li"><span class="g">${l.t}</span><span>${l.a}</span><span>${l.f}</span><span class="g" style="text-align:right">${l.s}</span></div>`).join('');
+  return `
+  <div class="win swiss">
+    <div class="wc">${ic('wmin', 12, '#000', 1.5)}${ic('wmax', 12, '#000', 1.5)}${ic('wclose', 12, '#000', 1.5)}</div>
+    <div class="head"><h1>Tandem.</h1>
+      <div class="meta"><b>${D.me.name}</b>This device<br>Port ${D.me.port}</div>
+      <div class="meta"><b>${D.peer.name}</b>Online<br>${D.peer.ip}</div></div>
+    <div class="rule"></div>
+    ${rows}
+    <div class="rule"></div>
+    <div class="bottom"><span></span>
+      <div><div class="h">Activity</div>${log}</div>
+      <div style="padding-left:28px"><div class="h">&nbsp;</div>
+        <div class="act">Add folder ${ic('right', 16, '#000', 2)}</div>
+        <div class="act">Pair device ${ic('right', 16, '#000', 2)}</div>
+        <div class="act">Settings ${ic('right', 16, '#000', 2)}</div>
+        <div class="act pri">Pause all ${ic('pause', 16, '#fff', 2)}</div></div>
+    </div>
+  </div>
+  <div class="swiss-dlg">
+    <div style="font-size:13px;font-weight:bold">Pair device</div>
+    <div style="font-size:28px;font-weight:bold;letter-spacing:-.8px;margin-top:4px">${D.nearby.name}</div>
+    <div class="c">482 913</div>
+    <div style="font-size:12px;line-height:1.5">The same code must be on both screens.</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:22px;border-top:1px solid #000;padding-top:14px">
+      <span style="font-size:15px;font-weight:bold">Cancel</span>
+      <span style="background:#000;color:#fff;font-size:15px;font-weight:bold;padding:10px 18px;display:flex;gap:16px;align-items:center">Pair ${ic('right', 16, '#fff', 2)}</span></div>
+  </div>
+  <div class="note">White, black and one red #E30613. Large bold Arial, thick rules, numbered rows on a strict grid, flush-left text. Numbers carry the state: red means something needs attention or is moving.</div>`;
+}
+
+function rack() {
+  const seg = p => `<span class="seg">${Array.from({ length: 16 }, (_, i) => `<i class="${i < Math.round(p / 100 * 16) ? 'on' : ''}"></i>`).join('')}</span>`;
+  const rows = D.folders.map((f, i) => `
+    <div class="lr ${i === 1 ? 'sel' : ''}"><span>${f.name.toUpperCase()}</span><span>${f.path.toUpperCase()}</span>
+      <span>${f.state === 'ok' ? 'IN SYNC' : f.state === 'sync' ? '12/40 FILES' : 'CONFLICT 1'}</span><span>${seg(f.pct)}</span></div>`).join('');
+  const meter = (lab, n, val) => {
+    const cells = Array.from({ length: 22 }, (_, i) => {
+      const c = i < 14 ? '#3FAE3F' : i < 19 ? '#E0A000' : '#D23A2A';
+      return `<i style="${i < n ? 'background:' + c : ''}"></i>`;
+    }).join('');
+    return `<div class="meter"><span style="width:20px">${lab}</span><span class="m">${cells}</span><span style="color:#CFCFCF;letter-spacing:1px;font-family:Consolas,monospace;font-size:11px">${val}</span></div>`;
+  };
+  const log = D.log.map(l => `<div class="l"><span>${l.t}</span><span>${l.a.toUpperCase()}</span><span>${l.f.toUpperCase()}</span><span>${l.fo.toUpperCase()}</span><span style="text-align:right">${l.s.toUpperCase()}</span></div>`).join('');
+  const key = (t, lit) => `<span class="key">${lit !== undefined ? `<span class="kl" style="${lit ? 'background:#FFB000' : ''}"></span>` : ''}${t}</span>`;
+  const led = (lab, c) => `<span class="ledw"><span class="led" style="${c ? 'background:' + c : ''}"></span>${lab}</span>`;
+  const screws = ['left:8px;top:8px', 'right:8px;top:8px', 'left:8px;bottom:8px', 'right:8px;bottom:8px'].map(s => `<span class="screw" style="${s}"></span>`).join('');
+  return `
+  <div class="win rack">${screws}
+    <div class="top"><span class="brand">TANDEM</span><span class="model">LAN FOLDER SYNC</span>
+      <div class="leds">${led('PWR', '#3FAE3F')}${led('LINK', '#3FAE3F')}${led('RX', '#E0A000')}${led('TX')}${led('ERR', '#D23A2A')}</div></div>
+    <div><div class="lab">FOLDERS</div>
+      <div class="lcd"><div class="lr hd"><span>NAME</span><span>PATH</span><span>STATUS</span><span>PROGRESS</span></div>${rows}</div></div>
+    <div class="mid">
+      <div><div class="lab">PEER</div>
+        <div class="lcd" style="display:flex;justify-content:space-between;padding:9px 16px"><span>${D.peer.name}</span><span>${D.peer.ip}</span><span>ONLINE</span></div></div>
+      <div><div class="lab">TRANSFER</div>${meter('RX', 12, '8.4 MB/S')}${meter('TX', 0, '0 KB/S')}</div>
+    </div>
+    <div><div class="lab">ACTIVITY</div><div class="lcd log">${log}</div></div>
+    <div class="keys">
+      ${key('ADD')}${key('REMOVE')}${key('SYNC')}${key('PAUSE', false)}${key('PAIR', true)}
+      <div class="engr">${D.me.name}<br>PORT ${D.me.port}</div></div>
+  </div>
+  <div class="win rack rack-dlg">
+    <div class="lab">PAIR DEVICE</div>
+    <div class="lcd" style="padding:14px 16px">
+      <div>${D.nearby.name}  ${D.nearby.ip}</div>
+      <div style="font-size:40px;letter-spacing:8px;margin-top:8px">482 913</div>
+      <div style="color:#8A6000;font-size:11px;margin-top:6px">CODE MUST MATCH ON BOTH DEVICES</div></div>
+    <div class="keys" style="margin-top:4px;justify-content:flex-end">${key('CANCEL')}${key('PAIR', true)}</div>
+  </div>
+  <div class="note">Dark panel #1D1D1D with screws, amber LCD #FFB000 in Consolas, indicator lamps, segmented level meters and hardware keys with small lamps. Looks like a piece of studio gear.</div>`;
+}
+
+const X16 = {
+  chev: '<path d="M4.5 8l3.5-3.5L11.5 8M4.5 12l3.5-3.5 3.5 3.5" stroke="#215DC6" stroke-width="1.6" fill="none"/>',
+  tmin: '<rect x="4" y="10" width="6" height="2.5" fill="#fff"/>',
+  tmax: '<rect x="3.5" y="3.5" width="9" height="9" fill="none" stroke="#fff"/><rect x="3.5" y="3.5" width="9" height="2.5" fill="#fff"/>',
+  tclose: '<path d="M4.5 4.5l7 7M11.5 4.5l-7 7" stroke="#fff" stroke-width="2"/>'
+};
+
+function gearPath(cx, cy, ro, ri, n) {
+  let d = '';
+  for (let i = 0; i < n; i++) {
+    const a = i * 2 * Math.PI / n, s = Math.PI / n;
+    [[ri, a - s * .6], [ro, a - s * .34], [ro, a + s * .34], [ri, a + s * .6]].forEach(([r, t], j) =>
+      d += (i === 0 && j === 0 ? 'M' : 'L') + (cx + r * Math.cos(t)).toFixed(2) + ' ' + (cy + r * Math.sin(t)).toFixed(2));
+  }
+  return d + 'Z';
+}
+const shadow = (cy, rx) => `<ellipse cx="16" cy="${cy}" rx="${rx}" ry="1.8" fill="url(#xShadow)"/>`;
+const orb = (g, s, glyph) => `${shadow(29.6, 11)}<circle cx="16" cy="16.5" r="13" fill="url(#${g})" stroke="${s}" stroke-width="1.2"/>
+  <ellipse cx="16" cy="10.3" rx="9.5" ry="6.2" fill="url(#xGloss)"/>${glyph}`;
+const embossed = (d, dark) => `<path d="${d}" stroke="${dark}" stroke-opacity=".45" stroke-width="4.4" fill="none" stroke-linecap="round" stroke-linejoin="round" transform="translate(0 .9)"/>
+  <path d="${d}" stroke="#fff" stroke-width="3.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+const MON = `${shadow(28.6, 11)}
+  <path d="M12.5 21.5H19.5L21 25H11Z" fill="#C3C9D2" stroke="#5D6672"/>
+  <rect x="7.5" y="24.5" width="17" height="3" rx="1.2" fill="url(#xBezel)" stroke="#5D6672"/>
+  <rect x="2.5" y="3" width="27" height="19" rx="2" fill="url(#xBezel)" stroke="#5D6672" stroke-width="1.2"/>
+  <rect x="5" y="5.5" width="22" height="13.5" fill="url(#xScr)" stroke="#2C3E66" stroke-width=".7"/>
+  <path d="M5.3 5.8H16L7.5 18.7H5.3Z" fill="#fff" opacity=".28"/>
+  <rect x="24" y="19.9" width="2.6" height="1" fill="#3FBF2A"/>`;
+
+const XI = {
+  folder: `${shadow(28.2, 13.5)}
+    <path d="M2.5 7Q2.5 5 4.5 5H11Q12 5 12.7 5.8L14 7.5H26.5Q28.5 7.5 28.5 9.5V25Q28.5 27 26.5 27H4.5Q2.5 27 2.5 25Z" fill="url(#xFoldBack)" stroke="#A8761A" stroke-width="1.2"/>
+    <rect x="6" y="8.5" width="19" height="8" fill="#fff" stroke="#CFC6A6" stroke-width=".8"/>
+    <path d="M8.5 11H22M8.5 13.5H19" stroke="#C9D3E3"/>
+    <path d="M5 12.2Q5.3 10.5 7 10.5H29.4Q31.2 10.5 30.8 12.2L28.3 25.4Q28 27 26.3 27H4.4Q2.6 27 2.9 25.3Z" fill="url(#xFoldFront)" stroke="#A8761A" stroke-width="1.2"/>
+    <path d="M7 11.9H29.1" stroke="#fff" stroke-opacity=".85"/>`,
+  laptop: `${shadow(28.4, 14)}
+    <rect x="6" y="3.5" width="20" height="16" rx="1.6" fill="url(#xBezel)" stroke="#5D6672" stroke-width="1.2"/>
+    <rect x="8.2" y="5.7" width="15.6" height="11.6" fill="url(#xScr)" stroke="#2C3E66" stroke-width=".7"/>
+    <path d="M8.5 6H17L9.5 17H8.5Z" fill="#fff" opacity=".28"/>
+    <path d="M4.5 20H27.5L30.6 25.6Q31.2 27 29.6 27H2.4Q0.8 27 1.4 25.6Z" fill="url(#xBezel)" stroke="#5D6672" stroke-width="1.2"/>
+    <path d="M6.5 22.2H25.5M5.8 24.3H26.2" stroke="#9AA3B0"/>`,
+  monitor: MON,
+  ok: orb('xOrbG', '#23701A', embossed('M9.6 17l4.6 4.6 8.6-9.8', '#1E5A12')),
+  add: orb('xOrbG', '#23701A', embossed('M16 9.5v14M9 16.5h14', '#1E5A12')),
+  sync: orb('xOrbB', '#163F9E', `
+    <path d="M22.6 14.1A7 7 0 0 0 9.4 14.1M9.4 18.9A7 7 0 0 0 22.6 18.9" stroke="#fff" stroke-width="2.6" fill="none"/>
+    <path d="M6 13.2H12.8L9.4 17.8ZM19.2 19.8H26L22.6 15.2Z" fill="#fff"/>`),
+  warn: `${shadow(29.2, 13)}
+    <path d="M16 3Q17.3 3 18 4.3L29.8 25.8Q30.5 27.6 28.6 27.6H3.4Q1.5 27.6 2.2 25.8L14 4.3Q14.7 3 16 3Z" fill="url(#xTri)" stroke="#A97500" stroke-width="1.2"/>
+    <path d="M16 6L25.5 23.5H6.5Z" fill="url(#xGloss)" opacity=".45"/>
+    <rect x="14.3" y="10" width="3.4" height="10.5" rx="1.7" fill="#262626"/>
+    <circle cx="16" cy="23.6" r="1.9" fill="#262626"/>`,
+  down: `${shadow(29.3, 9)}
+    <path d="M12 3.5H20Q21 3.5 21 4.5V14.5H25.6Q27.3 14.5 26.2 15.8L16.9 26.6Q16 27.6 15.1 26.6L5.8 15.8Q4.7 14.5 6.4 14.5H11V4.5Q11 3.5 12 3.5Z" fill="url(#xArrG)" stroke="#2A7316" stroke-width="1.2"/>
+    <path d="M12.7 5V15.6" stroke="#fff" stroke-opacity=".7" stroke-width="1.2"/>`,
+  up: `${shadow(29.6, 7)}
+    <path d="M12 28.5H20Q21 28.5 21 27.5V17.5H25.6Q27.3 17.5 26.2 16.2L16.9 5.4Q16 4.4 15.1 5.4L5.8 16.2Q4.7 17.5 6.4 17.5H11V27.5Q11 28.5 12 28.5Z" fill="url(#xArrB)" stroke="#1A47A8" stroke-width="1.2"/>
+    <path d="M12.7 27V16.4" stroke="#fff" stroke-opacity=".7" stroke-width="1.2"/>`,
+  pair: `<g transform="scale(.62)">${MON}</g><g transform="translate(12 11) scale(.62)">${MON}</g>
+    <path d="M9.9 17.4V23.2H13.4" stroke="#2F6FE0" stroke-width="1.6" fill="none"/>`,
+  gear: `${shadow(29.4, 11)}
+    <path d="${gearPath(16, 15.5, 13.2, 10, 8)}" fill="url(#xMetal)" stroke="#5F6977" stroke-width="1.2" stroke-linejoin="round"/>
+    <circle cx="16" cy="15.5" r="4.3" fill="#F4F6F9" stroke="#5F6977" stroke-width="1.2"/>`,
+  pause: `${shadow(29.2, 10)}
+    <rect x="7" y="4" width="7" height="23" rx="1.8" fill="url(#xArrB)" stroke="#1A47A8" stroke-width="1.2"/>
+    <rect x="18" y="4" width="7" height="23" rx="1.8" fill="url(#xArrB)" stroke="#1A47A8" stroke-width="1.2"/>
+    <path d="M9.2 6V25M20.2 6V25" stroke="#fff" stroke-opacity=".6" stroke-width="1.2"/>`,
+  trash: `${shadow(29.4, 9)}
+    <path d="M7 9H25L23.3 27.6Q23.2 28.8 22 28.8H10Q8.8 28.8 8.7 27.6Z" fill="url(#xBin)" stroke="#53698A" stroke-width="1.2"/>
+    <path d="M11.5 12L12.2 25.8M16 12V25.8M20.5 12L19.8 25.8" stroke="#7D93B3" stroke-width="1.1"/>
+    <rect x="5" y="5.8" width="22" height="3.6" rx="1.4" fill="url(#xBin)" stroke="#53698A" stroke-width="1.2"/>
+    <path d="M13 5.8V4Q13 3.2 13.8 3.2H18.2Q19 3.2 19 4V5.8" fill="none" stroke="#53698A" stroke-width="1.2"/>`
+};
+const xi = (n, s = 16) => X16[n]
+  ? `<svg width="${s}" height="${s}" viewBox="0 0 16 16">${X16[n]}</svg>`
+  : `<svg width="${s}" height="${s}" viewBox="0 0 32 32">${XI[n]}</svg>`;
+let xpFont = 'tahoma';
+
+function xpWin(title, body, small) {
+  const btns = small ? `<span class="tbtn x">${xi('tclose', 15)}</span>`
+    : `<span class="tbtn">${xi('tmin', 15)}</span><span class="tbtn">${xi('tmax', 15)}</span><span class="tbtn x" style="margin-left:2px">${xi('tclose', 15)}</span>`;
+  return `<div class="tt">${small ? '' : xi('sync', 16)}<span class="tx">${title}</span><div class="tbs">${btns}</div></div>${body}`;
+}
+
+function xp() {
+  const stIc = { ok: 'ok', sync: 'sync', conf: 'warn' };
+  const group = (title, body, special) => `<div class="g ${special ? 'sp' : ''}"><div class="gh">${title}<span class="chev">${xi('chev', 14)}</span></div><div class="gb">${body}</div></div>`;
+  const folders = D.folders.map((f, i) => `<div class="it ${i === 1 ? 'sel' : ''}">${xi('folder')}<span>${f.name}</span><span class="r">${xi(stIc[f.state], 14)}</span></div>`).join('');
+  const devices = `
+    <div class="it" style="align-items:flex-start">${xi('laptop')}<span>${D.peer.name}<span class="sub">Online, ${D.peer.ip}</span></span></div>
+    <div class="it" style="align-items:flex-start">${xi('monitor')}<span>${D.nearby.name}<span class="sub">Nearby, not paired</span></span></div>`;
+  const tasks = `
+    <div class="it">${xi('add')}<span>Add a folder</span></div>
+    <div class="it">${xi('pair')}<span>Pair a device</span></div>
+    <div class="it">${xi('sync')}<span>Sync all now</span></div>
+    <div class="it">${xi('gear')}<span>Settings</span></div>`;
+  const log = D.log.map(l => `<div class="lr"><span class="g">${l.t}</span><span>${xi(l.k, 14)}${l.a}</span><span>${l.f}</span><span class="g">${l.fo}</span><span class="g" style="justify-content:flex-end">${l.s}</span></div>`).join('');
+  const cls = `xp ${xpFont === 'arial' ? 'arial' : ''}`;
+  const main = `
+    <div class="main">
+      <div class="tp">
+        ${group('Folders', folders, true)}
+        ${group('Devices', devices)}
+        ${group('Tasks', tasks)}
+      </div>
+      <div class="det">
+        <div class="dh">${xi('folder', 48)}
+          <div><div class="ttl">${sel.name}</div><div style="color:#555;margin-top:2px">${sel.path}</div></div>
+          <div style="margin-left:auto;display:flex;gap:6px"><span class="b hov">${xi('pause', 14)}Pause</span><span class="b">Open folder</span></div></div>
+        <fieldset><legend>Status</legend>
+          <div class="kv"><span class="k">Files:</span><span>40</span><span class="k">Remaining:</span><span>412 MB</span>
+            <span class="k">Size:</span><span>1.1 GB</span><span class="k">Speed:</span><span>8.4 MB/s</span></div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:5px"><span>Syncing 12 of 40 files with ${D.peer.name}</span><span>35%</span></div>
+          <div class="pg"><i style="width:35%"></i></div>
+        </fieldset>
+        <div style="font-weight:bold;color:#0B2A7A">Activity</div>
+        <div class="lv">
+          <div class="lh"><span>Time</span><span>Action</span><span>File</span><span>Folder</span><span>Size</span></div>${log}</div>
+      </div>
+    </div>
+    <div class="sb"><span>Listening on port ${D.me.port}</span><span>Down: 8.4 MB/s</span><span>Up: 0 KB/s</span><span>${D.me.name}</span></div>`;
+  const dlg = `
+    <div style="padding:14px 14px 4px;display:flex;gap:14px">${xi('pair', 32)}
+      <div style="flex:1"><div>Pairing with <b>${D.nearby.name}</b> (${D.nearby.ip}).</div>
+        <div style="margin-top:6px">Make sure the other computer shows the same code:</div>
+        <div class="code">482 913</div></div></div>
+    <div style="display:flex;justify-content:flex-end;gap:6px;padding:12px">
+      <span class="b def">Pair</span><span class="b">Cancel</span></div>`;
+  return `
+  <div class="fontsw">Font:<button data-font="tahoma" class="${xpFont === 'tahoma' ? 'on' : ''}">Tahoma (as in XP)</button><button data-font="arial" class="${xpFont === 'arial' ? 'on' : ''}">Arial</button></div>
+  <div class="win ${cls}">${xpWin('Tandem', main)}</div>
+  <div class="win ${cls} xp-dlg">${xpWin('Pair device', dlg, true)}</div>
+  <div class="note" style="background:#ECE9D8;display:flex;gap:22px;flex-wrap:wrap">
+    ${Object.keys(XI).map(n => `<div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+      <div style="display:flex;align-items:flex-end;gap:8px">${xi(n, 16)}${xi(n, 32)}${xi(n, 48)}</div><span>${n}</span></div>`).join('')}
+  </div>
+  <div class="note">Luna blue title bar and beige #ECE9D8 body, Explorer-style blue task pane on the left with collapsible groups (folders, devices, tasks), folder details on the right: status group box with the green XP progress bar and a Details-view list of recent activity.</div>`;
+}
+
+const R = { a: braun, b: w2k, c: swiss, d: rack, e: xp };
+let cur = 'e';
+function show(v) {
+  cur = v;
+  document.querySelectorAll('#sw button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  document.getElementById('out').innerHTML = `<div class="stage">${R[v]()}</div>`;
+}
+document.getElementById('sw').addEventListener('click', e => { if (e.target.dataset.v) show(e.target.dataset.v); });
+document.getElementById('out').addEventListener('click', e => { if (e.target.dataset.font) { xpFont = e.target.dataset.font; show(cur); } });
+addEventListener('keydown', e => { const v = { 1: 'a', 2: 'b', 3: 'c', 4: 'd', 5: 'e' }[e.key]; if (v) show(v); });
+show('e');
+</script>
+</body>
+</html>
