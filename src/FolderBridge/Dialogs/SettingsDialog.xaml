@@ -32,6 +32,10 @@
                             </StackPanel>
                         </Grid>
                         <CheckBox x:Name="AutostartBox" Content="Start Folder Bridge when Windows starts" Margin="0,12,0,0" />
+                        <DockPanel x:Name="IgnoredRow" Margin="0,10,0,0" Visibility="Collapsed">
+                            <Button DockPanel.Dock="Right" Content="Ask again" Click="AskAgain_Click" />
+                            <TextBlock x:Name="IgnoredText" Foreground="#555555" VerticalAlignment="Center" TextWrapping="Wrap" />
+                        </DockPanel>
                     </StackPanel>
                 </GroupBox>
                 <GroupBox Header="Device ID" Background="{StaticResource Face}" Margin="0,10,0,0">

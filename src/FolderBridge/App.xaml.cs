@@ -78,13 +78,30 @@ public partial class App : Application
             return;
         }
 
-        if (engine.FirstRun && !Autostart.IsDevCopy)
-            Autostart.Set(true);
+        if (!Autostart.IsDevCopy)
+        {
+            if (engine.FirstRun)
+                Autostart.Set(true);
+            else
+                Autostart.FollowMovedExe();
+        }
 
+        var logPath = Path.Combine(dataDir, "folderbridge.log");
+        void LogCrash(string kind, object error)
+        {
+            try { File.AppendAllText(logPath, $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} {kind}: {error}{Environment.NewLine}"); }
+            catch (IOException) { }
+        }
         DispatcherUnhandledException += (_, ex) =>
         {
-            File.AppendAllText(Path.Combine(dataDir, "folderbridge.log"), $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} UI error: {ex.Exception}{Environment.NewLine}");
+            LogCrash("UI error", ex.Exception);
             ex.Handled = true;
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, ex) => LogCrash("Crash", ex.ExceptionObject);
+        TaskScheduler.UnobservedTaskException += (_, ex) =>
+        {
+            LogCrash("Background error", ex.Exception);
+            ex.SetObserved();
         };
 
         tray = new Tray(this, engine);

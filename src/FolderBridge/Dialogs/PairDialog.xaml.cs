@@ -27,6 +27,7 @@ public partial class PairDialog : XpWindow
         timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         timer.Tick += (_, _) => RefreshNearby();
         timer.Start();
+        engine.LookAround();
         RefreshNearby();
         SetStage(Stage.Choose);
         if (target?.EndPoint is { } ep)

@@ -34,8 +34,7 @@ public partial class MainWindow : XpWindow
     void Refresh()
     {
         vm.Update(engine.Snapshot());
-        foreach (var entry in engine.Activity.Since(ref activityCursor))
-            vm.AddActivity(entry);
+        vm.AddActivity(engine.Activity.Since(ref activityCursor));
         SyncSelection();
     }
 

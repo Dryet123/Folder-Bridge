@@ -16,6 +16,18 @@ public partial class SettingsDialog : XpWindow
         PortBox.Text = s.Port.ToString();
         IdBox.Text = s.DeviceId.Grouped;
         AutostartBox.IsChecked = Autostart.IsEnabled;
+        var ignored = engine.IgnoredOffers;
+        if (ignored > 0)
+        {
+            IgnoredText.Text = ignored == 1 ? "1 shared folder was ignored." : $"{ignored} shared folders were ignored.";
+            IgnoredRow.Visibility = Visibility.Visible;
+        }
+    }
+
+    void AskAgain_Click(object sender, RoutedEventArgs e)
+    {
+        engine.AskAgainAboutIgnored();
+        IgnoredRow.Visibility = Visibility.Collapsed;
     }
 
     void Copy_Click(object sender, RoutedEventArgs e) => Clipboard.SetText(IdBox.Text);

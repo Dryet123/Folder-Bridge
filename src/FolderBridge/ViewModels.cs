@@ -76,6 +76,31 @@ public sealed class ActivityVm
     public string Details { get; }
 }
 
+// Newest first and capped; a burst of entries lands as one change so the list lays out once.
+public sealed class ActivityList : ObservableCollection<ActivityVm>
+{
+    const int Limit = 300;
+
+    public void Prepend(IEnumerable<ActivityVm> newestLast)
+    {
+        var added = newestLast.Reverse().ToList();
+        if (added.Count == 0)
+            return;
+        if (added.Count == 1 && Count < Limit)
+        {
+            Insert(0, added[0]);
+            return;
+        }
+        var merged = added.Concat(Items).Take(Limit).ToList();
+        Items.Clear();
+        foreach (var item in merged)
+            Items.Add(item);
+        OnPropertyChanged(new PropertyChangedEventArgs(nameof(Count)));
+        OnPropertyChanged(new PropertyChangedEventArgs("Item[]"));
+        OnCollectionChanged(new System.Collections.Specialized.NotifyCollectionChangedEventArgs(System.Collections.Specialized.NotifyCollectionChangedAction.Reset));
+    }
+}
+
 public sealed class ShareVm : Observable
 {
     readonly Engine engine;
@@ -122,7 +147,6 @@ public sealed class ShareVm : Observable
 
 public sealed class FolderVm : Observable
 {
-    const int ActivityLimit = 300;
     readonly Engine engine;
     readonly RateMeter rate = new();
     string name = "", path = "", statusLine = "", files = "", size = "", remaining = "", speed = "", percentText = "";
@@ -138,7 +162,7 @@ public sealed class FolderVm : Observable
 
     public string Id { get; }
     public ObservableCollection<ShareVm> Shares { get; } = [];
-    public ObservableCollection<ActivityVm> Activity { get; } = [];
+    public ActivityList Activity { get; } = new();
 
     public string Name { get => name; private set => Set(ref name, value); }
     public string Path { get => path; private set => Set(ref path, value); }
@@ -168,12 +192,6 @@ public sealed class FolderVm : Observable
     public string PauseText => Paused ? "Resume" : "Pause";
     public ImageSource PauseIcon => Paused ? Icons.Play : Icons.Pause;
 
-    public void AddActivity(ActivityVm item)
-    {
-        Activity.Insert(0, item);
-        if (Activity.Count > ActivityLimit)
-            Activity.RemoveAt(Activity.Count - 1);
-    }
 
     public void Update(FolderSnapshot s, IReadOnlyList<DeviceSnapshot> devices)
     {
@@ -238,7 +256,6 @@ public sealed class FolderVm : Observable
 
 public sealed class DeviceVm : Observable
 {
-    const int ActivityLimit = 300;
     string name = "", sub = "", status = "", address = "", folders = "";
     bool isPaired, connected;
     ImageSource icon = Icons.Monitor;
@@ -248,7 +265,7 @@ public sealed class DeviceVm : Observable
     public DeviceId Id { get; }
     public string IdText => Id.Grouped;
     public IPEndPoint? EndPoint { get; private set; }
-    public ObservableCollection<ActivityVm> Activity { get; } = [];
+    public ActivityList Activity { get; } = new();
 
     public string Name { get => name; private set => Set(ref name, value); }
     public string Sub { get => sub; private set => Set(ref sub, value); }
@@ -259,12 +276,6 @@ public sealed class DeviceVm : Observable
     public bool Connected { get => connected; private set => Set(ref connected, value); }
     public ImageSource Icon { get => icon; private set => Set(ref icon, value); }
 
-    public void AddActivity(ActivityVm item)
-    {
-        Activity.Insert(0, item);
-        if (Activity.Count > ActivityLimit)
-            Activity.RemoveAt(Activity.Count - 1);
-    }
 
     public void Update(DeviceSnapshot d, IEnumerable<FolderSnapshot> allFolders)
     {
@@ -363,13 +374,15 @@ public sealed class MainViewModel : Observable
             Detail = Folders.FirstOrDefault() ?? (object)Welcome;
     }
 
-    public void AddActivity(ActivityEntry e)
+    public void AddActivity(IReadOnlyList<ActivityEntry> entries)
     {
-        var item = new ActivityVm(e);
-        if (e.FolderId != null)
-            Folders.FirstOrDefault(f => f.Id == e.FolderId)?.AddActivity(item);
-        if (e.Device is { } id)
-            Devices.FirstOrDefault(d => d.Id == id)?.AddActivity(item);
+        if (entries.Count == 0)
+            return;
+        var items = entries.Select(e => new ActivityVm(e)).ToList();
+        foreach (var folder in Folders)
+            folder.Activity.Prepend(items.Where(i => i.Entry.FolderId == folder.Id));
+        foreach (var device in Devices)
+            device.Activity.Prepend(items.Where(i => i.Entry.Device == device.Id));
     }
 
     static void SyncList<TVm, TItem>(ObservableCollection<TVm> target, IList<TItem> source, Func<TItem, string> key,
