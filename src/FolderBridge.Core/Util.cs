@@ -66,7 +66,7 @@ public static class Format
         return i == 0 ? $"{bytes} B" : v >= 100 ? $"{v:0} {units[i]}" : $"{v:0.#} {units[i]}";
     }
 
-    public static string Speed(double bytesPerSecond) => bytesPerSecond < 1 ? "0 KB/s" : Bytes((long)bytesPerSecond) + "/s";
+    public static string Speed(double bytesPerSecond) => bytesPerSecond < 1024 ? "0 KB/s" : Bytes((long)bytesPerSecond) + "/s";
 
     public static string Count(long n) => n.ToString("#,0").Replace(',', ' ');
 }

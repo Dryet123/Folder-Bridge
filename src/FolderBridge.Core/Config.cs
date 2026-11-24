@@ -15,7 +15,8 @@ public sealed class AppConfig
         created = !File.Exists(path);
         if (created)
             return new AppConfig();
-        return JsonSerializer.Deserialize<AppConfig>(File.ReadAllBytes(path), Json.Options) ?? new AppConfig();
+        // ReadAllText drops the BOM that Notepad may add when the file is edited by hand.
+        return JsonSerializer.Deserialize<AppConfig>(File.ReadAllText(path), Json.Options) ?? new AppConfig();
     }
 
     public void Save(string path) => AtomicFile.Write(path, JsonSerializer.SerializeToUtf8Bytes(this, Json.Pretty));

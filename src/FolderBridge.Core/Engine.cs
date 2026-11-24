@@ -44,7 +44,7 @@ public sealed class Engine : IDisposable
     public Identity Identity { get; }
     public DeviceId Id => Identity.Id;
     public bool FirstRun { get; }
-    public ActivityLog Activity { get; } = new();
+    public ActivityLog Activity { get; }
     public string? ListenError { get; private set; }
 
     public event Action<PairingSession>? PairingRequested;
@@ -64,6 +64,7 @@ public sealed class Engine : IDisposable
         catch (IOException)
         {
         }
+        Activity = new ActivityLog(Path.Combine(dataDir, "activity.jsonl"));
         Identity = Identity.LoadOrCreate(Path.Combine(dataDir, "device.pfx"));
         configPath = Path.Combine(dataDir, "config.json");
         config = AppConfig.Load(configPath, out var created);

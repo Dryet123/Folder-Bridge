@@ -20,8 +20,36 @@ public sealed class ActivityLog
     const int Capacity = 1000;
     readonly Queue<ActivityEntry> recent = new();
     readonly object gate = new();
+    readonly string? path;
 
     public event Action<ActivityEntry>? Added;
+
+    public ActivityLog(string? path = null)
+    {
+        this.path = path;
+        if (path == null || !File.Exists(path))
+            return;
+        try
+        {
+            var lines = File.ReadAllLines(path);
+            foreach (var line in lines.TakeLast(Capacity))
+            {
+                try
+                {
+                    if (System.Text.Json.JsonSerializer.Deserialize<ActivityEntry>(line, Json.Options) is { } e)
+                        recent.Enqueue(e);
+                }
+                catch (System.Text.Json.JsonException)
+                {
+                }
+            }
+            if (lines.Length > Capacity * 2)
+                File.WriteAllLines(path, lines.TakeLast(Capacity));
+        }
+        catch (IOException)
+        {
+        }
+    }
 
     public void Add(ActivityEntry entry)
     {
@@ -30,6 +58,11 @@ public sealed class ActivityLog
             recent.Enqueue(entry);
             while (recent.Count > Capacity)
                 recent.Dequeue();
+            if (path != null)
+            {
+                try { File.AppendAllText(path, System.Text.Json.JsonSerializer.Serialize(entry, Json.Options) + Environment.NewLine); }
+                catch (IOException) { }
+            }
         }
         Added?.Invoke(entry);
     }
