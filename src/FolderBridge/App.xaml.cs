@@ -24,6 +24,7 @@ public partial class App : Application
     bool memoryDirty = true;
     long activityCursor;
     SettingsDialog? settings;
+    FileSystemWatcher? selfWatcher;
     long lastWork;
 
     public static ImageSource WindowIcon { get; private set; } = null!;
@@ -121,6 +122,7 @@ public partial class App : Application
         OnSignal(showSignal, ShowMain);
         OnSignal(exitSignal, Quit);
         Snapshots.Start();
+        WatchOwnExe();
 
         engine.OptionsChanged += () => Dispatcher.BeginInvoke(ApplyLoad);
         engine.Activity.Since(ref activityCursor);
@@ -249,12 +251,66 @@ public partial class App : Application
         }
     }
 
-    public void Quit()
+    // A single-file app keeps loading parts of itself from its exe, so once a new version is saved over it
+    // the old process starts failing. It restarts into the new exe instead.
+    void WatchOwnExe()
     {
+        var path = Environment.ProcessPath;
+#if DEBUG
+        var forced = Environment.GetEnvironmentVariable("FOLDERBRIDGE_WATCH_EXE") != null;
+#else
+        const bool forced = false;
+#endif
+        if (path == null || (Autostart.IsDevCopy && !forced))
+            return;
+        var file = new FileInfo(path);
+        var stamp = (file.Length, file.LastWriteTimeUtc);
+        var check = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+        check.Tick += (_, _) =>
+        {
+            check.Stop();
+            var now = new FileInfo(path);
+            // Only a real replacement counts; OneDrive and antivirus may touch the file without changing it.
+            if (!now.Exists || (now.Length, now.LastWriteTimeUtc) == stamp)
+                return;
+            try
+            {
+                using (File.OpenRead(path)) { }
+            }
+            catch (IOException)
+            {
+                check.Start();
+                return;
+            }
+            Quit(restart: true);
+        };
+        selfWatcher = new FileSystemWatcher(file.DirectoryName!, file.Name)
+        {
+            NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.Size,
+        };
+        FileSystemEventHandler changed = (_, _) => Dispatcher.BeginInvoke(() =>
+        {
+            check.Stop();
+            check.Start();
+        });
+        selfWatcher.Changed += changed;
+        selfWatcher.Created += changed;
+        selfWatcher.Renamed += (o, e) => changed(o, e);
+        selfWatcher.EnableRaisingEvents = true;
+    }
+
+    public void Quit() => Quit(false);
+
+    void Quit(bool restart)
+    {
+        var reopenWindow = main != null;
+        selfWatcher?.Dispose();
         tray?.Dispose();
         engine.Dispose();
         main?.Close();
         instance?.ReleaseMutex();
+        if (restart && Environment.ProcessPath is { } path)
+            System.Diagnostics.Process.Start(path, reopenWindow ? "" : "--tray");
         Shutdown();
     }
 
