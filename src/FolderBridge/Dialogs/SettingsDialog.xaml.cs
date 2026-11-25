@@ -21,6 +21,7 @@ public partial class SettingsDialog : XpWindow
         PortBox.Text = s.Port.ToString(CultureInfo.InvariantCulture);
         IdBox.Text = s.DeviceId.Grouped;
         AutostartBox.IsChecked = Autostart.IsEnabled;
+        ShortcutBox.IsChecked = DesktopShortcut.Exists;
         NotifyBox.IsChecked = o.Notifications;
 
         ModeInstant.IsChecked = o.Mode == SyncMode.Instant;
@@ -99,6 +100,8 @@ public partial class SettingsDialog : XpWindow
             engine.UpdateOptions(options);
             if (AutostartBox.IsChecked != Autostart.IsEnabled)
                 Autostart.Set(AutostartBox.IsChecked == true);
+            if (ShortcutBox.IsChecked != DesktopShortcut.Exists)
+                DesktopShortcut.Set(ShortcutBox.IsChecked == true);
             DialogResult = true;
         }
         catch (ArgumentException ex)

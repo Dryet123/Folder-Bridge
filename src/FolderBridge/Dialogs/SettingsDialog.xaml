@@ -21,6 +21,7 @@
                                 <TextBox x:Name="NameBox" />
                             </DockPanel>
                             <CheckBox x:Name="AutostartBox" Content="Start Folder Bridge when Windows starts" Margin="0,12,0,0" />
+                            <CheckBox x:Name="ShortcutBox" Content="Put a shortcut on the desktop" Margin="0,8,0,0" />
                             <CheckBox x:Name="NotifyBox" Content="Show notifications" Margin="0,8,0,0" />
                             <TextBlock Text="Pairing requests, shared folders, conflicts and errors, shown when the window is closed."
                                        Foreground="#555555" TextWrapping="Wrap" Margin="18,2,0,0" />

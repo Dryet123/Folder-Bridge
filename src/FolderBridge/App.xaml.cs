@@ -80,12 +80,10 @@ public partial class App : Application
             return;
         }
 
-        if (!Autostart.IsDevCopy)
+        if (!Autostart.IsDevCopy && !engine.FirstRun)
         {
-            if (engine.FirstRun)
-                Autostart.Set(true);
-            else
-                Autostart.FollowMovedExe();
+            Autostart.FollowMovedExe();
+            DesktopShortcut.FollowMovedExe();
         }
 
         var logPath = Path.Combine(dataDir, "folderbridge.log");
@@ -131,6 +129,16 @@ public partial class App : Application
         var housekeeping = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
         housekeeping.Tick += (_, _) => Housekeep();
         housekeeping.Start();
+
+#if DEBUG
+        var welcomeTest = Environment.GetEnvironmentVariable("FOLDERBRIDGE_WELCOME") != null;
+#else
+        const bool welcomeTest = false;
+#endif
+        // A first start of a downloaded copy asks about the desktop shortcut and autostart.
+        // Test copies only show the dialog and never touch the real desktop or registry.
+        if (engine.FirstRun && (!Autostart.IsDevCopy || welcomeTest) && !args.Contains("--tray"))
+            new FirstRunDialog(dryRun: Autostart.IsDevCopy).ShowDialog();
 
         if (!args.Contains("--tray"))
             ShowMain();
