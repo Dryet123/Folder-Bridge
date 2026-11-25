@@ -758,6 +758,8 @@ public sealed class FolderSync : IDisposable
                 {
                     if (t.IsCompletedSuccessfully)
                         t.Result?.Dispose();
+                    else
+                        _ = t.Exception;
                 });
             TryDelete(tmp);
             throw;

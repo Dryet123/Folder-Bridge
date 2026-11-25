@@ -757,7 +757,7 @@ public sealed class Engine : IDisposable
                     OnHello(conn, Connection.Read<HelloMessage>(payload));
                     break;
                 case MessageType.ClusterConfig:
-                    await OnClusterConfig(conn, Connection.Read<ClusterConfigMessage>(payload));
+                    OnClusterConfig(conn, Connection.Read<ClusterConfigMessage>(payload));
                     break;
                 case MessageType.Index:
                     OnIndex(conn, Connection.Read<IndexMessage>(payload));
@@ -809,7 +809,7 @@ public sealed class Engine : IDisposable
         }
     }
 
-    async Task OnClusterConfig(Connection conn, ClusterConfigMessage m)
+    void OnClusterConfig(Connection conn, ClusterConfigMessage m)
     {
         var peer = conn.PeerId;
         List<FolderOffer> fresh;
@@ -823,7 +823,9 @@ public sealed class Engine : IDisposable
         }
         foreach (var offer in fresh)
             FolderOffered?.Invoke(offer);
-        await RefreshActive(conn);
+        // Never send a whole index from the read loop: when both sides do that at once, neither reads,
+        // the socket buffers fill up and the connection stalls until it times out.
+        _ = Task.Run(() => RefreshActive(conn));
     }
 
     List<FolderOffer> CollectOffers(DeviceId peer, string peerName, List<SharedFolder> shared)

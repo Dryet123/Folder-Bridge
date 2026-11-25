@@ -197,6 +197,27 @@ public sealed class SyncTests : IAsyncLifetime
         Assert.Empty(Directory.GetFiles(dirB, "*.conflict-*"));
     }
 
+    // On reconnect both sides send their whole index. With big folders that used to deadlock:
+    // each side sent from its read loop, so neither read, and the link timed out after a minute.
+    [Fact]
+    public async Task BigIndexesOnBothSidesDontStallReconnect()
+    {
+        b.UpdateOptions(b.Options with { Cpu = CpuMode.Full });
+        a.UpdateOptions(a.Options with { Cpu = CpuMode.Full });
+        var deep = string.Join("/", Enumerable.Repeat("a-rather-long-folder-name-like-in-a-modpack", 3));
+        Directory.CreateDirectory(Path.Combine(dirA, deep));
+        for (int i = 0; i < 6000; i++)
+            File.WriteAllText(Path.Combine(dirA, deep, $"config-file-with-a-long-name-{i:D5}.cfg"), "x");
+        await WaitUntil(() => b.Snapshot().Folders.Single().LocalFiles == 6000, 120);
+
+        b.Dispose();
+        b = CreateEngine("B");
+        b.Start();
+        await WaitUntil(() => b.Snapshot().Devices.Any(d => d.Connected));
+        File.WriteAllText(Path.Combine(dirA, "probe.txt"), "still alive");
+        await WaitUntil(() => HasText(Path.Combine(dirB, "probe.txt"), "still alive"), 40);
+    }
+
     [Fact]
     public async Task ManualModeWaitsForSyncNow()
     {
