@@ -189,21 +189,17 @@ public partial class App : Application
         settings.ShowDialog();
     }
 
-    // The process priority follows the chosen load. Windows' background mode would also slow the open
-    // window down, so it is only used while the window is closed.
+    // The process priority follows the chosen load; idle priority would make the open window sluggish,
+    // so it is only used while the window is closed. Windows' own background mode was measured to double
+    // the CPU time spent (it also lowers memory priority, so pages keep getting evicted), so it isn't used.
     void ApplyLoad()
     {
-        var mode = engine.Options.Cpu;
-        var process = GetCurrentProcess();
-        SetPriorityClass(process, ProcessModeBackgroundEnd);
-        SetPriorityClass(process, mode switch
+        SetPriorityClass(GetCurrentProcess(), engine.Options.Cpu switch
         {
             CpuMode.Full => NormalPriority,
             CpuMode.Background when main == null => IdlePriority,
             _ => BelowNormalPriority,
         });
-        if (mode == CpuMode.Background && main == null)
-            SetPriorityClass(process, ProcessModeBackgroundBegin);
     }
 
     // Conflicts and failures get a notification when nobody is looking at the window.
@@ -261,7 +257,6 @@ public partial class App : Application
     static extern bool SetProcessWorkingSetSize(IntPtr process, nint min, nint max);
 
     const uint NormalPriority = 0x20, IdlePriority = 0x40, BelowNormalPriority = 0x4000;
-    const uint ProcessModeBackgroundBegin = 0x00100000, ProcessModeBackgroundEnd = 0x00200000;
 
     [DllImport("kernel32.dll")]
     static extern bool SetPriorityClass(IntPtr process, uint priority);

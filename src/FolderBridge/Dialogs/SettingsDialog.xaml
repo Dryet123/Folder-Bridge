@@ -67,7 +67,7 @@
                             <RadioButton x:Name="CpuBalanced" GroupName="Cpu" Content="Balanced" />
                             <TextBlock Text="Lower priority and short breaks, so other programs stay smooth." Foreground="#555555" Margin="18,1,0,6" />
                             <RadioButton x:Name="CpuBackground" GroupName="Cpu" Content="Background" />
-                            <TextBlock Text="Lowest priority for processor and disk. Slowest, hardly noticeable." Foreground="#555555" Margin="18,1,0,0" />
+                            <TextBlock Text="Lowest priority and long breaks. Slowest, hardly noticeable." Foreground="#555555" Margin="18,1,0,0" />
                             <CheckBox x:Name="BatteryBox" Content="Don't sync while running on battery" Margin="0,12,0,0" />
                             <CheckBox x:Name="MeteredBox" Content="Don't sync on metered connections" Margin="0,7,0,0" />
                         </StackPanel>
